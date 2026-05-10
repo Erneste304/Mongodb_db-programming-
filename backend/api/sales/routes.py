@@ -3,7 +3,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from backend.models.sales import Transaction, Customer, FuelType, PaymentMethod, TransactionStatus
+from backend.models.user import User
 from backend.services.access_control import AccessControlService
+from backend.core.security import require_role_level
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 

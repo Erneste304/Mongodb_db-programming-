@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import os
+from datetime import datetime
 from passlib.context import CryptContext
 
 # Add project root to path
@@ -79,5 +80,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    from datetime import datetime
     asyncio.run(main())

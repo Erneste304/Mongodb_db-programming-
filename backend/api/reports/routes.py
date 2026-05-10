@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from backend.models.sales import Transaction, FuelType
 from backend.models.inventory import Tank
 from backend.models.finance import Payment, DailyCashReconciliation
-from beanie import Sum
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 

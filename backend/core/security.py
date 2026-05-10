@@ -50,7 +50,7 @@ async def get_current_active_user(
     return current_user
 
 
-async def require_role(role_name: str):
+def require_role(role_name: str):
     """Dependency to require specific role"""
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role.name != role_name and current_user.role.name != "superadmin":
@@ -62,7 +62,7 @@ async def require_role(role_name: str):
     return role_checker
 
 
-async def require_role_level(min_level: int):
+def require_role_level(min_level: int):
     """Dependency to require minimum role level"""
     async def level_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role.level > min_level:
