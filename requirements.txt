@@ -1,0 +1,33 @@
+# Original MongoDB Assignment Dependencies
+pymongo==4.5.0
+python-dotenv==1.0.0
+dnspython==2.4.2
+certifi==2023.7.22
+
+# Petroleum Station Management System Dependencies
+# Backend - FastAPI
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-multipart==0.0.6
+
+# Database - MongoDB with Beanie ODM
+motor==3.3.2
+beanie==1.25.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dateutil==2.8.2
+
+# Background Tasks
+celery==5.3.6
+redis==5.0.1
+
+# Frontend - Reflex (Pure Python)
+reflex==0.5.0
+
+# Utilities
+email-validator==2.1.0
+
