@@ -1,6 +1,19 @@
-assets/external/
-.web
-.states
+# Python
 __pycache__/
-*.db
 *.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.env
+
+# Reflex
+.web/
+rxconfig.py.bak
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store

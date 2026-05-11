@@ -3,6 +3,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from backend.models.inventory import Tank, FuelDelivery, InventoryRecord, FuelType, TankStatus, DeliveryStatus
+from backend.services.inventory_analysis import InventoryAnalysisService
+from backend.services.audit_service import AuditLogService
+from backend.models.user import User
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -351,7 +354,23 @@ async def create_inventory_record(request: CreateInventoryRecordRequest):
         )
     
     record = InventoryRecord(**request.dict())
+    
+    # 2. Run Theft/Leakage Analysis (Innovation)
+    analysis = await InventoryAnalysisService.analyze_shift_variance(request.tank_id, record)
+    
+    # Apply analysis results to record
+    record.variance_liters = analysis["variance_liters"]
+    record.variance_percent = analysis["variance_percent"]
+    record.is_anomaly = analysis["is_anomaly"]
+    record.anomaly_type = analysis["anomaly_type"]
+    record.anomaly_severity = analysis["severity"]
+    
     await record.insert()
+    
+    # 3. Alert Admin if Anomaly detected
+    if record.is_anomaly:
+        # await NotificationService.send_alert(...)
+        pass
     
     return InventoryRecordResponse(
         id=str(record.id),

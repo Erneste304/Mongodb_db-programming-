@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 class APIClient:
     """HTTP client for backend API communication"""
     
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:8080"):
         self.base_url = base_url
         self.token: Optional[str] = None
     

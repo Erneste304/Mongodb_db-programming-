@@ -45,7 +45,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 @router.post("/login", response_model=TokenResponse)
 async def login(request: LoginRequest):
     """Authenticate user and return JWT token"""
-    user = await User.find_one(User.username == request.username)
+    user = await User.find_one(User.username == request.username, fetch_links=True)
     
     if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(

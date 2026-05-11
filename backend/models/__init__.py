@@ -11,6 +11,11 @@ from backend.models.staff_management import (
     StationOperationLog, SafetyComplianceRecord,
     PumpCalibrationRecord, SupplierDelivery, CustomerComplaint
 )
+from backend.models.accounting import (
+    BankReconciliation, AccountsReceivable, AccountsPayable,
+    TaxRecord, FuelCostTracking, CommissionCalculation,
+    CorporateInvoice, DailyClosing, RURAComplianceReport
+)
 
 __all__ = [
     "User",
@@ -37,5 +42,14 @@ __all__ = [
     "SafetyComplianceRecord",
     "PumpCalibrationRecord",
     "SupplierDelivery",
-    "CustomerComplaint"
+    "CustomerComplaint",
+    "BankReconciliation",
+    "AccountsReceivable",
+    "AccountsPayable",
+    "TaxRecord",
+    "FuelCostTracking",
+    "CommissionCalculation",
+    "CorporateInvoice",
+    "DailyClosing",
+    "RURAComplianceReport"
 ]

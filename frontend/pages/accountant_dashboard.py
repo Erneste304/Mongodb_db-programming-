@@ -1,9 +1,10 @@
 import reflex as rx
 import requests
 from frontend.utils.api_client import api_client
+from frontend.base_state import State
 
 
-class AccountantDashboardState(rx.State):
+class AccountantDashboardState(State):
     """Accountant dashboard state"""
     daily_sales: float = 0
     pending_payments: float = 0
@@ -73,7 +74,7 @@ def accountant_dashboard_page() -> rx.Component:
         rx.vstack(
             # Header
             rx.hstack(
-                rx.heading("Accountant Dashboard", size="2xl"),
+                rx.heading("Accountant Dashboard", size="8"),
                 rx.spacer(),
                 rx.button(
                     "Logout",
@@ -89,8 +90,8 @@ def accountant_dashboard_page() -> rx.Component:
                 rx.card(
                     rx.vstack(
                         rx.text("Today's Sales", color="gray"),
-                        rx.heading(f"{AccountantDashboardState.daily_sales:,.0f}", size="3xl"),
-                        rx.text("RWF", color="green", font_size="sm"),
+                        rx.heading(f"{AccountantDashboardState.daily_sales:,.0f}", size="9"),
+                        rx.text("RWF", color="green", font_size="2"),
                         spacing="1"
                     ),
                     padding="1.5rem"
@@ -98,8 +99,8 @@ def accountant_dashboard_page() -> rx.Component:
                 rx.card(
                     rx.vstack(
                         rx.text("Pending Payments", color="gray"),
-                        rx.heading(f"{AccountantDashboardState.pending_payments:,.0f}", size="3xl"),
-                        rx.text("RWF", color="orange", font_size="sm"),
+                        rx.heading(f"{AccountantDashboardState.pending_payments:,.0f}", size="9"),
+                        rx.text("RWF", color="orange", font_size="2"),
                         spacing="1"
                     ),
                     padding="1.5rem"
@@ -107,8 +108,8 @@ def accountant_dashboard_page() -> rx.Component:
                 rx.card(
                     rx.vstack(
                         rx.text("Petty Cash Balance", color="gray"),
-                        rx.heading(f"{AccountantDashboardState.petty_cash_balance:,.0f}", size="3xl"),
-                        rx.text("RWF", color="blue", font_size="sm"),
+                        rx.heading(f"{AccountantDashboardState.petty_cash_balance:,.0f}", size="9"),
+                        rx.text("RWF", color="blue", font_size="2"),
                         spacing="1"
                     ),
                     padding="1.5rem"
@@ -130,7 +131,7 @@ def accountant_dashboard_page() -> rx.Component:
                 rx.tabs.content(
                     # Financial Overview Tab
                     rx.vstack(
-                        rx.heading("Financial Overview", size="lg"),
+                        rx.heading("Financial Overview", size="6"),
                         rx.text("Daily financial summary and key metrics"),
                         rx.divider(),
                         rx.vstack(
@@ -162,7 +163,7 @@ def accountant_dashboard_page() -> rx.Component:
                 rx.tabs.content(
                     # Payments Tab
                     rx.vstack(
-                        rx.heading("Payments Management", size="lg"),
+                        rx.heading("Revenue Streams", size="6"),
                         rx.hstack(
                             rx.button("Create Payment Request", color_scheme="blue"),
                             rx.button("View All Payments", variant="outline"),
@@ -178,7 +179,7 @@ def accountant_dashboard_page() -> rx.Component:
                 rx.tabs.content(
                     # Cash Reconciliation Tab
                     rx.vstack(
-                        rx.heading("Cash Reconciliation", size="lg"),
+                        rx.heading("Cash Reconciliation", size="4"),
                         rx.hstack(
                             rx.button("New Reconciliation", color_scheme="blue"),
                             rx.button("View History", variant="outline"),
@@ -194,7 +195,7 @@ def accountant_dashboard_page() -> rx.Component:
                 rx.tabs.content(
                     # My Requests Tab
                     rx.vstack(
-                        rx.heading("My Approval Requests", size="lg"),
+                        rx.heading("My Approval Requests", size="4"),
                         rx.button("Create New Request", color_scheme="blue"),
                         rx.divider(),
                         rx.foreach(
@@ -204,7 +205,7 @@ def accountant_dashboard_page() -> rx.Component:
                                     rx.hstack(
                                         rx.badge(req["type"], color_scheme="blue"),
                                         rx.badge(req["status"], color_scheme="yellow"),
-                                        rx.text(req["requested_at"], color="gray", font_size="sm"),
+                                        rx.text(req["requested_at"], color="gray", font_size="2"),
                                         justify="between",
                                         width="100%"
                                     ),

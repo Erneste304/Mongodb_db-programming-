@@ -420,6 +420,119 @@ async def seed_permissions():
             "requires_approval": False,
             "approval_role_level": None,
             "description": "Resolve complaints (Admin only)"
+        },
+        # Accounting & Finance (Accountant)
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "bank_reconciliation",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Create bank reconciliations"
+        },
+        {
+            "module": "accounting",
+            "action": "read",
+            "resource": "bank_reconciliation",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "View bank reconciliations"
+        },
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "invoice",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Create corporate invoices"
+        },
+        {
+            "module": "accounting",
+            "action": "read",
+            "resource": "accounts_receivable",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "View accounts receivable"
+        },
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "ar_payment",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Record payments from customers"
+        },
+        {
+            "module": "accounting",
+            "action": "read",
+            "resource": "accounts_payable",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "View accounts payable"
+        },
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "ap_payment",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Record payments to suppliers"
+        },
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "tax_record",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Create tax records"
+        },
+        {
+            "module": "accounting",
+            "action": "read",
+            "resource": "tax_record",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "View tax records"
+        },
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "cost_tracking",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Track fuel costs and margins"
+        },
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "commission",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Calculate staff commissions"
+        },
+        {
+            "module": "accounting",
+            "action": "approve",
+            "resource": "commission",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Approve commission payments"
+        },
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "daily_closing",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Record and verify daily closing"
+        },
+        {
+            "module": "accounting",
+            "action": "create",
+            "resource": "compliance_report",
+            "requires_approval": False,
+            "approval_role_level": None,
+            "description": "Generate RURA compliance reports"
         }
     ]
     

@@ -1,23 +1,81 @@
 import reflex as rx
 import requests
 from frontend.utils.api_client import api_client
+from frontend.base_state import State
+
+from frontend.base_state import State
+
+# Final attempt at finding the correct Base for 0.9.x
+from reflex_base.components.props import PropsBase as Base
 
 
-class AdminDashboardState(rx.State):
+class Permission(Base):
+    id: str = ""
+    name: str = ""
+    enabled: bool = False
+    requires_approval: bool = False
+
+
+class StaffMember(Base):
+    id: str = ""
+    name: str = ""
+    role: str = ""
+    employee_id: str = ""
+    is_active: bool = False
+    permissions: list[Permission] = []
+
+
+class AdminDashboardState(State):
     """Admin dashboard state"""
-    staff_members: list[dict] = []
-    pending_approvals: list[dict] = []
-    selected_tab: str = "staff"
+    # Visitor and Audit state
+    visitor_logs: list[dict] = []
+    audit_logs: list[dict] = []
     
-    # Fuel pricing state
-    fuel_pricing: list[dict] = []
-    partner_agreements: list[dict] = []
+    # UI State
+    selected_tab: str = "staff"
+    staff_members: list[StaffMember] = []
+    pending_approvals: list[dict] = []
     
     # System settings state
     system_settings: dict = {}
     
     def set_selected_tab(self, tab: str):
         self.selected_tab = tab
+    
+    async def toggle_staff_active(self, staff_id: str, current_status: bool):
+        """Toggle staff active status"""
+        try:
+            api_client.patch(f"/users/{staff_id}", {"is_active": not current_status})
+            await self.load_staff()
+            rx.toast.success(f"Staff account {'disabled' if current_status else 'enabled'}")
+        except Exception as e:
+            rx.toast.error(f"Failed to update status: {str(e)}")
+
+    async def toggle_permission(self, staff_id: str, permission_id: str, current_state: bool):
+        """Toggle staff permission"""
+        try:
+            api_client.post(f"/users/{staff_id}/permissions/toggle", {
+                "permission_id": permission_id,
+                "enabled": not current_state
+            })
+            await self.load_staff()
+            rx.toast.success("Permission updated")
+        except Exception as e:
+            rx.toast.error(f"Failed to update permission: {str(e)}")
+
+    async def load_audit_logs(self):
+        """Load audit logs (Blind-spot rule applied by backend)"""
+        try:
+            self.audit_logs = api_client.get("/audit/logs")
+        except Exception as e:
+            self.audit_logs = []
+
+    async def load_visitor_logs(self):
+        """Load visitor sign-in logs"""
+        try:
+            self.visitor_logs = api_client.get("/visitors/log")
+        except Exception as e:
+            self.visitor_logs = []
     
     async def load_staff(self):
         """Load staff members from backend API"""
@@ -107,56 +165,70 @@ class AdminDashboardState(rx.State):
         """Load data when component mounts"""
         self.load_staff()
         self.load_approvals()
+        self.load_audit_logs()
+        self.load_visitor_logs()
 
 
-def staff_card(staff: dict) -> rx.Component:
-    """Staff member card with toggle controls"""
+def staff_card(staff: StaffMember) -> rx.Component:
+    """Premium staff member card"""
     return rx.card(
         rx.vstack(
             # Header
             rx.hstack(
                 rx.avatar(
-                    name=staff["name"],
-                    size="lg"
+                    fallback=staff.name[0:2].upper(),
+                    size="4",
+                    color_scheme="blue",
+                    radius="full",
                 ),
                 rx.vstack(
-                    rx.heading(staff["name"], size="md"),
-                    rx.text(f"{staff['role']} - ID: {staff['employee_id']}", color="gray"),
+                    rx.heading(staff.name, size="4", weight="bold"),
+                    rx.text(f"{staff.role} | ID: {staff.employee_id}", size="1", color="gray"),
                     align_items="start",
-                    spacing="0"
+                    spacing="0",
                 ),
                 rx.spacer(),
-                rx.switch(
-                    is_checked=staff["is_active"],
-                    size="lg",
-                    color_scheme="green" if staff["is_active"] else "red"
-                ),
-                rx.badge(
-                    "Active" if staff["is_active"] else "Disabled",
-                    color_scheme="green" if staff["is_active"] else "red"
+                rx.hstack(
+                    rx.switch(
+                        is_checked=staff.is_active,
+                        on_change=lambda _: AdminDashboardState.toggle_staff_active(staff.id, staff.is_active),
+                        size="3",
+                        color_scheme=rx.cond(staff.is_active, "green", "red"),
+                    ),
+                    rx.badge(
+                        rx.cond(staff.is_active, "ACTIVE", "INACTIVE"),
+                        color_scheme=rx.cond(staff.is_active, "green", "red"),
+                        variant="soft",
+                        class_name="status-badge",
+                    ),
+                    spacing="3",
+                    align="center",
                 ),
                 width="100%",
-                justify="between"
+                align="center",
             ),
             
             rx.divider(),
             
             # Permissions Section
-            rx.heading("Access Permissions", size="sm"),
+            rx.heading("Access Permissions", size="2"),
             rx.vstack(
                 rx.foreach(
-                    staff["permissions"],
+                    staff.permissions,
                     lambda perm: rx.hstack(
-                        rx.text(perm["name"], width="60%"),
+                        rx.text(perm.name, width="60%"),
                         rx.switch(
-                            is_checked=perm["enabled"],
-                            size="sm",
-                            color_scheme="green" if perm["enabled"] else "red"
+                            is_checked=perm.enabled,
+                            on_change=lambda _: AdminDashboardState.toggle_permission(
+                                staff.id, perm.id, perm.enabled
+                            ),
+                            size="2",
+                            color_scheme=rx.cond(perm.enabled, "green", "red")
                         ),
                         rx.badge(
-                            "Approval Required" if perm["requires_approval"] else "Direct",
-                            color_scheme="orange" if perm["requires_approval"] else "blue",
-                            font_size="xs"
+                            rx.cond(perm.requires_approval, "Approval Required", "Direct"),
+                            color_scheme=rx.cond(perm.requires_approval, "orange", "blue"),
+                            font_size="1"
                         ),
                         justify="between",
                         width="100%",
@@ -193,6 +265,7 @@ def staff_card(staff: dict) -> rx.Component:
         ),
         width="100%",
         padding="1.5rem",
+        class_name="glass-card",
         margin_bottom="1rem"
     )
 
@@ -204,7 +277,7 @@ def approval_queue_item(request: dict) -> rx.Component:
             rx.hstack(
                 rx.badge(request["type"], color_scheme="blue"),
                 rx.badge(request["status"], color_scheme="yellow"),
-                rx.text(request["requested_at"], color="gray", font_size="sm"),
+                rx.text(request["requested_at"], color="gray", font_size="2"),
                 justify="between",
                 width="100%"
             ),
@@ -239,18 +312,18 @@ def approval_queue_item(request: dict) -> rx.Component:
                 rx.button(
                     "Approve",
                     color_scheme="green",
-                    size="sm"
+                    size="2"
                 ),
                 rx.button(
                     "Reject",
                     color_scheme="red",
                     variant="outline",
-                    size="sm"
+                    size="2"
                 ),
                 rx.button(
                     "Request More Info",
                     variant="ghost",
-                    size="sm"
+                    size="2"
                 ),
                 spacing="2"
             ),
@@ -264,56 +337,107 @@ def approval_queue_item(request: dict) -> rx.Component:
 
 
 def admin_dashboard_page() -> rx.Component:
-    """Main admin dashboard"""
+    """Premium Admin Dashboard"""
     return rx.box(
-        rx.vstack(
-            # Header
+        # Navigation Bar
+        rx.box(
             rx.hstack(
-                rx.heading("Admin Dashboard", size="2xl"),
+                rx.vstack(
+                    rx.heading("COMMAND CENTER", size="7", weight="bold", letter_spacing="1px"),
+                    rx.text("Petroleum Management Mission Control", size="2", color="gray"),
+                    spacing="0",
+                    align_items="start",
+                ),
                 rx.spacer(),
-                rx.button(
-                    "Logout",
-                    on_click=State.logout,
-                    variant="outline"
+                rx.hstack(
+                    rx.badge("System Secure", color_scheme="green", variant="surface"),
+                    rx.badge("EBM Active", color_scheme="blue", variant="surface"),
+                    rx.button(
+                        "Logout", 
+                        variant="soft", 
+                        color_scheme="red",
+                        on_click=State.logout,
+                    ),
+                    spacing="4",
                 ),
                 width="100%",
-                justify="between"
+                max_width="1400px",
+                margin="0 auto",
+                align="center",
             ),
-            
-            # Stats Cards
-            rx.hstack(
-                rx.card(
-                    rx.vstack(
-                        rx.text("Active Staff", color="gray"),
-                        rx.heading("12", size="3xl"),
-                        rx.text("↑ 2 from last month", color="green", font_size="sm"),
-                        spacing="1"
+            class_name="app-header",
+            width="100%",
+        ),
+        
+        # Main Content
+        rx.box(
+            rx.vstack(
+                # Stats Grid
+                rx.grid(
+                    rx.card(
+                        rx.vstack(
+                            rx.hstack(
+                                rx.icon("users", size=20, color="gray"),
+                                rx.text("Active Personnel", size="2", color="gray"),
+                                spacing="2",
+                            ),
+                            rx.text("12", class_name="stats-value"),
+                            rx.text("2 pending approval", color="orange", size="2"),
+                            align_items="start",
+                        ),
+                        class_name="glass-card",
+                        padding="2rem",
                     ),
-                    padding="1.5rem"
-                ),
-                rx.card(
-                    rx.vstack(
-                        rx.text("Pending Approvals", color="gray"),
-                        rx.heading("5", size="3xl"),
-                        rx.text("↓ 3 from yesterday", color="green", font_size="sm"),
-                        spacing="1"
+                    rx.card(
+                        rx.vstack(
+                            rx.hstack(
+                                rx.icon("triangle_alert", size=20, color="gray"),
+                                rx.text("System Anomalies", size="2", color="gray"),
+                                spacing="2",
+                            ),
+                            rx.text("2", class_name="stats-value", color="red"),
+                            rx.text("Theft/Leakage detected", color="red", size="2"),
+                            align_items="start",
+                        ),
+                        class_name="glass-card",
+                        padding="2rem",
                     ),
-                    padding="1.5rem"
-                ),
-                rx.card(
-                    rx.vstack(
-                        rx.text("Today's Sales", color="gray"),
-                        rx.heading("3,450,000", size="3xl"),
-                        rx.text("RWF ↑ 12% from average", color="green", font_size="sm"),
-                        spacing="1"
+                    rx.card(
+                        rx.vstack(
+                            rx.hstack(
+                                rx.icon("banknote", size=20, color="gray"),
+                                rx.text("Today's Revenue", size="2", color="gray"),
+                                spacing="2",
+                            ),
+                            rx.text("3,450,000", class_name="stats-value"),
+                            rx.text("RWF (100% EBM Verified)", color="green", size="2"),
+                            align_items="start",
+                        ),
+                        class_name="glass-card",
+                        padding="2rem",
                     ),
-                    padding="1.5rem"
+                    rx.card(
+                        rx.vstack(
+                            rx.hstack(
+                                rx.icon("map_pin", size=20, color="gray"),
+                                rx.text("Current Visitors", size="2", color="gray"),
+                                spacing="2",
+                            ),
+                            rx.text("3", class_name="stats-value"),
+                            rx.text("Tankers on-site", color="blue", size="2"),
+                            align_items="start",
+                        ),
+                        class_name="glass-card",
+                        padding="2rem",
+                    ),
+                    columns="4",
+                    spacing="6",
+                    width="100%",
+                    margin_bottom="2rem",
                 ),
-                spacing="4",
-                width="100%"
-            ),
-            
-            rx.divider(),
+                
+                # Space for Tabs
+                rx.divider(),
             
             # Tabs
             rx.tabs.root(
@@ -322,6 +446,7 @@ def admin_dashboard_page() -> rx.Component:
                     rx.tabs.trigger("Approval Queue", value="approvals"),
                     rx.tabs.trigger("Fuel Pricing", value="pricing"),
                     rx.tabs.trigger("System Settings", value="settings"),
+                    rx.tabs.trigger("Visitor Logs", value="visitors"),
                     rx.tabs.trigger("Audit Logs", value="audit"),
                     rx.tabs.trigger("Reports", value="reports"),
                 ),
@@ -329,7 +454,7 @@ def admin_dashboard_page() -> rx.Component:
                     # Staff Management Tab
                     rx.vstack(
                         rx.hstack(
-                            rx.heading("Staff Management", size="lg"),
+                            rx.heading("Staff Management", size="6"),
                             rx.spacer(),
                             rx.button(
                                 "+ Add New Staff",
@@ -348,7 +473,7 @@ def admin_dashboard_page() -> rx.Component:
                 rx.tabs.content(
                     # Approval Queue Tab
                     rx.vstack(
-                        rx.heading("Pending Approvals", size="lg"),
+                        rx.heading("Pending Approvals", size="6"),
                         rx.foreach(
                             AdminDashboardState.pending_approvals,
                             approval_queue_item
@@ -360,23 +485,73 @@ def admin_dashboard_page() -> rx.Component:
                 rx.tabs.content(
                     # Audit Logs Tab
                     rx.vstack(
-                        rx.heading("Audit Trail", size="lg"),
-                        rx.alert(
-                            rx.alert_icon(),
-                            rx.alert_title("Note: You cannot see your own actions in this log"),
-                            rx.alert_description("This ensures accountability and prevents self-manipulation of records."),
-                            status="info"
+                        rx.foreach(
+                            AdminDashboardState.audit_logs,
+                            lambda log: rx.card(
+                                rx.hstack(
+                                    rx.vstack(
+                                        rx.text(log["action"], font_weight="bold"),
+                                        rx.text(f"Resource: {log['resource_type']} ({log['resource_id']})", font_size="2"),
+                                        align_items="start"
+                                    ),
+                                    rx.spacer(),
+                                    rx.vstack(
+                                        rx.text(log["timestamp"], font_size="1", color="gray"),
+                                        rx.badge(log.get("actor_name", "Staff"), color_scheme="purple"),
+                                        align_items="end"
+                                    ),
+                                    width="100%"
+                                ),
+                                padding="1rem",
+                                margin_bottom="0.5rem"
+                            )
                         ),
-                        rx.text("Audit logs will be displayed here"),
                         width="100%"
                     ),
                     value="audit"
                 ),
                 rx.tabs.content(
+                    # Visitor Logs Tab
+                    rx.vstack(
+                        rx.heading("Visitor Sign-in Log", size="6"),
+                        rx.table.root(
+                            rx.table.header(
+                                rx.table.row(
+                                    rx.table.column_header_cell("Visitor"),
+                                    rx.table.column_header_cell("Type"),
+                                    rx.table.column_header_cell("Purpose"),
+                                    rx.table.column_header_cell("Check-in"),
+                                    rx.table.column_header_cell("Status"),
+                                )
+                            ),
+                            rx.table.body(
+                                rx.foreach(
+                                    AdminDashboardState.visitor_logs,
+                                    lambda log: rx.table.row(
+                                        rx.table.cell(log["visitor_name"]),
+                                        rx.table.cell(log["visitor_type"]),
+                                        rx.table.cell(log["purpose"]),
+                                        rx.table.cell(log["check_in_time"]),
+                                        rx.table.cell(
+                                            rx.badge(
+                                                log["status"],
+                                                color_scheme=rx.cond(log["status"] == "completed", "green", "yellow")
+                                            )
+                                        ),
+                                    )
+                                )
+                            ),
+                            width="100%"
+                        ),
+                        width="100%"
+                    ),
+                    value="visitors"
+                ),
+                rx.tabs.content(
                     # Fuel Pricing Tab (Superadmin)
                     rx.vstack(
                         rx.hstack(
-                            rx.heading("Fuel Pricing Management", size="lg"),
+                            rx.heading("Fuel Pricing Management", size="6"),
                             rx.badge("Superadmin Only", color_scheme="red"),
                             rx.spacer(),
                             rx.button("Add New Pricing", color_scheme="blue"),
@@ -387,25 +562,25 @@ def admin_dashboard_page() -> rx.Component:
                         rx.text("Set fuel prices based on RURA guidelines"),
                         rx.card(
                             rx.vstack(
-                                rx.heading("Current Fuel Prices", size="md"),
+                                rx.heading("Current Fuel Prices", size="4"),
                                 rx.hstack(
                                     rx.text("Petrol (Retail):", font_weight="bold"),
                                     rx.text("1,650 RWF/liter"),
-                                    rx.button("Update", size="sm", variant="outline"),
+                                    rx.button("Update", size="2", variant="outline"),
                                     justify="between",
                                     width="100%"
                                 ),
                                 rx.hstack(
                                     rx.text("Diesel (Retail):", font_weight="bold"),
                                     rx.text("1,550 RWF/liter"),
-                                    rx.button("Update", size="sm", variant="outline"),
+                                    rx.button("Update", size="2", variant="outline"),
                                     justify="between",
                                     width="100%"
                                 ),
                                 rx.hstack(
                                     rx.text("Kerosene:", font_weight="bold"),
                                     rx.text("1,200 RWF/liter"),
-                                    rx.button("Update", size="sm", variant="outline"),
+                                    rx.button("Update", size="2", variant="outline"),
                                     justify="between",
                                     width="100%"
                                 ),
@@ -416,7 +591,7 @@ def admin_dashboard_page() -> rx.Component:
                         ),
                         rx.card(
                             rx.vstack(
-                                rx.heading("Partner Agreements", size="md"),
+                                rx.heading("Partner Agreements", size="4"),
                                 rx.text("Manage supplier contracts and commissions"),
                                 rx.button("View All Agreements", variant="outline"),
                                 width="100%",
@@ -432,7 +607,7 @@ def admin_dashboard_page() -> rx.Component:
                     # System Settings Tab (Superadmin)
                     rx.vstack(
                         rx.hstack(
-                            rx.heading("System Settings", size="lg"),
+                            rx.heading("System Settings", size="6"),
                             rx.badge("Superadmin Only", color_scheme="red"),
                             rx.spacer(),
                             rx.button("Save Changes", color_scheme="green"),
@@ -442,7 +617,7 @@ def admin_dashboard_page() -> rx.Component:
                         rx.text("Configure system parameters and business rules"),
                         rx.card(
                             rx.vstack(
-                                rx.heading("Station Information", size="md"),
+                                rx.heading("Station Information", size="4"),
                                 rx.hstack(
                                     rx.text("Station Name:", width="200px"),
                                     rx.input(value="Petroleum Station", width="300px")
@@ -462,7 +637,7 @@ def admin_dashboard_page() -> rx.Component:
                         ),
                         rx.card(
                             rx.vstack(
-                                rx.heading("Business Rules", size="md"),
+                                rx.heading("Business Rules", size="4"),
                                 rx.hstack(
                                     rx.text("Large Payment Threshold:", width="200px"),
                                     rx.input(value="1000000", width="200px"),
@@ -485,7 +660,7 @@ def admin_dashboard_page() -> rx.Component:
                         ),
                         rx.card(
                             rx.vstack(
-                                rx.heading("Approval Settings", size="md"),
+                                rx.heading("Approval Settings", size="4"),
                                 rx.hstack(
                                     rx.text("Approval Timeout (hours):", width="200px"),
                                     rx.input(value="24", width="200px")
@@ -505,7 +680,7 @@ def admin_dashboard_page() -> rx.Component:
                 ),
                 rx.tabs.content(
                     # Reports Tab
-                    rx.heading("Reports", size="lg"),
+                    rx.heading("Reports", size="6"),
                     value="reports"
                 ),
                 on_change=AdminDashboardState.set_selected_tab,
@@ -518,5 +693,5 @@ def admin_dashboard_page() -> rx.Component:
             spacing="6"
         ),
         width="100%",
-        background_color="#f8fafc"
+        background_color="#f8fafc",
     )

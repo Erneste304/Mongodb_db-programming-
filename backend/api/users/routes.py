@@ -116,7 +116,7 @@ async def get_users(
     current_user: User = Depends(get_current_user)
 ):
     """Get all users"""
-    users = await User.find_all().skip(skip).limit(limit).to_list()
+    users = await User.find_all(fetch_links=True).skip(skip).limit(limit).to_list()
     return [
         UserResponse(
             id=str(user.id),
@@ -138,7 +138,7 @@ async def get_user(
     current_user: User = Depends(get_current_user)
 ):
     """Get a specific user"""
-    user = await User.get(user_id)
+    user = await User.get(user_id, fetch_links=True)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -164,7 +164,7 @@ async def update_user(
     current_user: User = Depends(require_role_level(2))
 ):
     """Update user details"""
-    user = await User.get(user_id)
+    user = await User.get(user_id, fetch_links=True)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -201,7 +201,7 @@ async def toggle_user_permission(
 ):
     """Toggle a user's permission (requires admin)"""
     
-    user = await User.get(user_id)
+    user = await User.get(user_id, fetch_links=True)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

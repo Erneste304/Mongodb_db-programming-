@@ -1,15 +1,25 @@
 import reflex as rx
 import requests
 from frontend.utils.api_client import api_client
+from frontend.base_state import State
+from reflex_base.components.props import PropsBase as Base
 
 
-class InventoryDashboardState(rx.State):
+class TankRecord(Base):
+    tank_number: str = ""
+    fuel_type: str = ""
+    current_level: float = 0.0
+    capacity: float = 0.0
+    percentage: float = 0.0
+
+
+class InventoryDashboardState(State):
     """Inventory manager dashboard state"""
     total_tanks: int = 0
     total_capacity: float = 0
     current_level: float = 0
     average_fill: float = 0
-    tanks_below_threshold: list[dict] = []
+    tanks_below_threshold: list[TankRecord] = []
     pending_deliveries: int = 0
     selected_tab: str = "overview"
     
@@ -59,7 +69,7 @@ def inventory_dashboard_page() -> rx.Component:
         rx.vstack(
             # Header
             rx.hstack(
-                rx.heading("Inventory Manager Dashboard", size="2xl"),
+                rx.heading("Inventory Manager Dashboard", size="8"),
                 rx.spacer(),
                 rx.button(
                     "Logout",
@@ -75,8 +85,8 @@ def inventory_dashboard_page() -> rx.Component:
                 rx.card(
                     rx.vstack(
                         rx.text("Total Tanks", color="gray"),
-                        rx.heading(InventoryDashboardState.total_tanks, size="3xl"),
-                        rx.text("tanks", color="blue", font_size="sm"),
+                        rx.heading(InventoryDashboardState.total_tanks, size="9"),
+                        rx.text("tanks", color="blue", font_size="2"),
                         spacing="1"
                     ),
                     padding="1.5rem"
@@ -84,8 +94,8 @@ def inventory_dashboard_page() -> rx.Component:
                 rx.card(
                     rx.vstack(
                         rx.text("Total Capacity", color="gray"),
-                        rx.heading(f"{InventoryDashboardState.total_capacity:,.0f}", size="3xl"),
-                        rx.text("liters", color="blue", font_size="sm"),
+                        rx.heading(f"{InventoryDashboardState.total_capacity:,.0f}", size="9"),
+                        rx.text("liters", color="blue", font_size="2"),
                         spacing="1"
                     ),
                     padding="1.5rem"
@@ -93,8 +103,8 @@ def inventory_dashboard_page() -> rx.Component:
                 rx.card(
                     rx.vstack(
                         rx.text("Current Level", color="gray"),
-                        rx.heading(f"{InventoryDashboardState.current_level:,.0f}", size="3xl"),
-                        rx.text("liters", color="green", font_size="sm"),
+                        rx.heading(f"{InventoryDashboardState.current_level:,.0f}", size="9"),
+                        rx.text("liters", color="green", font_size="2"),
                         spacing="1"
                     ),
                     padding="1.5rem"
@@ -102,8 +112,8 @@ def inventory_dashboard_page() -> rx.Component:
                 rx.card(
                     rx.vstack(
                         rx.text("Average Fill", color="gray"),
-                        rx.heading(f"{InventoryDashboardState.average_fill:.1f}%", size="3xl"),
-                        rx.text("capacity", color="orange" if InventoryDashboardState.average_fill < 50 else "green", font_size="sm"),
+                        rx.heading(f"{InventoryDashboardState.average_fill:.1f}%", size="9"),
+                        rx.text("capacity", color=rx.cond(InventoryDashboardState.average_fill < 50, "orange", "green"), font_size="2"),
                         spacing="1"
                     ),
                     padding="1.5rem"
@@ -115,11 +125,12 @@ def inventory_dashboard_page() -> rx.Component:
             # Alert for tanks below threshold
             rx.cond(
                 InventoryDashboardState.tanks_below_threshold.length() > 0,
-                rx.alert(
-                    rx.alert_icon(),
-                    rx.alert_title("Low Fuel Alert"),
-                    rx.alert_description(f"{InventoryDashboardState.tanks_below_threshold.length} tank(s) below threshold"),
-                    status="warning"
+                rx.callout.root(
+                    rx.callout.icon(rx.icon("triangle_alert")),
+                    rx.callout.text(f"Warning: {InventoryDashboardState.tanks_below_threshold.length()} tank(s) are below the safety threshold."),
+                    color_scheme="red",
+                    variant="soft",
+                    width="100%"
                 )
             ),
             
@@ -137,7 +148,7 @@ def inventory_dashboard_page() -> rx.Component:
                     # Tank Overview Tab
                     rx.vstack(
                         rx.hstack(
-                            rx.heading("Tank Overview", size="lg"),
+                            rx.heading("Tank Overview", size="6"),
                             rx.badge(f"{InventoryDashboardState.pending_deliveries} Pending Deliveries", color_scheme="yellow"),
                             rx.spacer(),
                             rx.button("Add Tank", color_scheme="blue"),
@@ -150,20 +161,20 @@ def inventory_dashboard_page() -> rx.Component:
                         rx.cond(
                             InventoryDashboardState.tanks_below_threshold.length() > 0,
                             rx.vstack(
-                                rx.heading("Tanks Below Threshold", size="md"),
+                                rx.heading("Tanks Below Threshold", size="4"),
                                 rx.foreach(
                                     InventoryDashboardState.tanks_below_threshold,
                                     lambda tank: rx.card(
                                         rx.hstack(
                                             rx.vstack(
-                                                rx.text(f"Tank {tank['tank_number']}", font_weight="bold"),
-                                                rx.text(tank["fuel_type"].capitalize()),
+                                                rx.text(f"Tank {tank.tank_number}", font_weight="bold"),
+                                                rx.text(tank.fuel_type.capitalize()),
                                                 align_items="start"
                                             ),
                                             rx.spacer(),
                                             rx.vstack(
-                                                rx.text(f"{tank['fill_percentage']:.1f}% full", color="red"),
-                                                rx.text(f"{tank['current_level']:,.0f} / {tank['capacity']:,.0f} L"),
+                                                rx.text(f"{tank.percentage:.1f}% full", color="red"),
+                                                rx.text(f"{tank.current_level:,.0f} / {tank.capacity:,.0f} L"),
                                                 align_items="end"
                                             ),
                                             width="100%",
@@ -185,7 +196,7 @@ def inventory_dashboard_page() -> rx.Component:
                     # Fuel Deliveries Tab
                     rx.vstack(
                         rx.hstack(
-                            rx.heading("Fuel Deliveries", size="lg"),
+                            rx.heading("Fuel Deliveries", size="6"),
                             rx.button("Record Delivery", color_scheme="green"),
                             rx.button("View All Deliveries", variant="outline"),
                             spacing="2"
@@ -200,7 +211,7 @@ def inventory_dashboard_page() -> rx.Component:
                     # Inventory Records Tab
                     rx.vstack(
                         rx.hstack(
-                            rx.heading("Inventory Records", size="lg"),
+                            rx.heading("Inventory Records", size="6"),
                             rx.button("Create Record", color_scheme="blue"),
                             rx.button("View History", variant="outline"),
                             spacing="2"
@@ -215,7 +226,7 @@ def inventory_dashboard_page() -> rx.Component:
                     # Tank Calibration Tab
                     rx.vstack(
                         rx.hstack(
-                            rx.heading("Tank Calibration", size="lg"),
+                            rx.heading("Tank Calibration", size="6"),
                             rx.button("Schedule Calibration", color_scheme="blue"),
                             rx.button("View Certificates", variant="outline"),
                             spacing="2"

@@ -5,6 +5,10 @@ from datetime import datetime
 from backend.models.sales import Transaction, Customer, FuelType, PaymentMethod, TransactionStatus
 from backend.models.user import User
 from backend.services.access_control import AccessControlService
+from backend.services.tax_service import TaxService
+from backend.services.payment_service import PaymentService
+from backend.services.loyalty_service import LoyaltyAIService
+from backend.services.pricing_service import PricingService
 from backend.core.security import require_role_level
 
 router = APIRouter(prefix="/sales", tags=["sales"])
@@ -20,6 +24,8 @@ class CreateTransactionRequest(BaseModel):
     payment_reference: Optional[str] = None
     pump_number: Optional[int] = None
     attendant_id: Optional[str] = None
+    phone_number: Optional[str] = None  # Required for mobile money
+    provider: Optional[str] = "MTN"  # MTN or Airtel
     receipt_number: Optional[str] = None
     tin_number: Optional[str] = None
 
@@ -74,18 +80,16 @@ class CustomerResponse(BaseModel):
 async def create_transaction(request: CreateTransactionRequest, user_id: str = "user"):
     """Create a new sales transaction"""
     
-    # Calculate total amount
-    total_amount = request.quantity_liters * request.price_per_liter
-    
-    # Check access control (if needed)
-    # can_perform, reason = await AccessControlService.can_user_perform_action(...)
+    # 1. Fetch Latest RRA-Approved Price (Secure/Dynamic)
+    price_per_liter = await PricingService.get_current_price(request.fuel_type)
+    total_amount = request.quantity_liters * price_per_liter
     
     transaction = Transaction(
         transaction_id=request.transaction_id,
         customer_id=request.customer_id,
         fuel_type=request.fuel_type,
         quantity_liters=request.quantity_liters,
-        price_per_liter=request.price_per_liter,
+        price_per_liter=price_per_liter,
         total_amount=total_amount,
         payment_method=request.payment_method,
         payment_reference=request.payment_reference,
@@ -96,14 +100,50 @@ async def create_transaction(request: CreateTransactionRequest, user_id: str = "
         status=TransactionStatus.COMPLETED
     )
     
-    await transaction.insert()
+    # 3. Apply EBM Signing (Rwanda RRA Requirement)
+    transaction = await TaxService.sign_transaction(transaction)
     
-    # Update customer balance if credit payment
-    if request.customer_id and request.payment_method == PaymentMethod.CREDIT:
+    # 4. Handle Mobile Money Payment (Rwanda-Specific Push-to-Pay)
+    if request.payment_method == PaymentMethod.MOBILE_MONEY:
+        if not request.phone_number:
+            raise HTTPException(status_code=400, detail="Phone number required for mobile money")
+        
+        payment_result = await PaymentService.process_mobile_money_payment(
+            phone_number=request.phone_number,
+            amount=request.total_amount,
+            provider=request.provider
+        )
+        
+        if payment_result["status"] != "successful":
+            raise HTTPException(
+                status_code=402, 
+                detail=f"Payment Failed: {payment_result['message']}"
+            )
+        
+        transaction.payment_reference = payment_result["external_id"]
+        transaction.notes = (transaction.notes or "") + f" | MoMo Payment Verified: {payment_result['external_id']}"
+
+    # 5. Apply AI-Driven Loyalty Rewards
+    customer = None
+    if request.customer_id:
         customer = await Customer.find_one(Customer.customer_id == request.customer_id)
-        if customer:
-            customer.current_balance += total_amount
-            await customer.save()
+        
+    if customer:
+        loyalty_results = await LoyaltyAIService.apply_loyalty_rewards(transaction, customer)
+        
+        # Update customer points and balance
+        customer.loyalty_points += loyalty_results["points_earned"]
+        
+        if transaction.payment_method == PaymentMethod.CREDIT:
+            customer.current_balance += (transaction.total_amount - loyalty_results["discount_applied"])
+        
+        await customer.save()
+        
+        transaction.notes = (transaction.notes or "") + f" | Loyalty Points: +{loyalty_results['points_earned']}"
+        if loyalty_results["discount_applied"] > 0:
+            transaction.notes += f" | AI Discount: -{loyalty_results['discount_applied']} RWF"
+
+    await transaction.insert()
     
     # Log the action
     # await AuditLogService.log_action(...)

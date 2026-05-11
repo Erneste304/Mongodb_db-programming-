@@ -70,11 +70,19 @@ class InventoryRecord(Document):
     record_id: str = Field(..., unique=True)
     tank_id: str
     fuel_type: FuelType
-    opening_level_liters: float
-    closing_level_liters: float
-    dispensed_liters: float = Field(default=0)
+    opening_level_liters: float = Field(..., description="Dip stick reading at start")
+    closing_level_liters: float = Field(..., description="Dip stick reading at end")
+    dispensed_liters: float = Field(default=0, description="Electronic meter total")
     deliveries_liters: float = Field(default=0)
-    recorded_by: str
+    
+    # Anomaly Tracking
+    variance_liters: float = Field(default=0.0)
+    variance_percent: float = Field(default=0.0)
+    is_anomaly: bool = Field(default=False)
+    anomaly_type: Optional[str] = Field(None)
+    anomaly_severity: Optional[str] = Field(None) # low, medium, high
+    
+    recorded_by: str = Field(...)
     record_date: datetime = Field(default_factory=datetime.utcnow)
     shift: str = Field(default="day", description="day, night")
     notes: Optional[str] = Field(None)

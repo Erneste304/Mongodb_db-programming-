@@ -34,6 +34,8 @@ class Transaction(Document):
     quantity_liters: float = Field(..., gt=0)
     price_per_liter: float = Field(..., gt=0)
     total_amount: float = Field(..., gt=0)
+    vat_amount: float = Field(default=0.0, description="18% VAT amount included in total")
+    net_amount: float = Field(default=0.0, description="Amount before VAT")
     payment_method: PaymentMethod
     payment_reference: Optional[str] = Field(None, description="Mobile money reference or card transaction ID")
     pump_number: Optional[int] = Field(None)
@@ -46,9 +48,13 @@ class Transaction(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    # Rwanda-specific fields
+    # Rwanda-specific EBM (Electronic Billing Machine) fields
     receipt_number: Optional[str] = Field(None)
     tin_number: Optional[str] = Field(None, description="Customer TIN for receipts")
+    ebm_signature: Optional[str] = Field(None, description="RRA SCD Signature")
+    ebm_mrc: Optional[str] = Field(None, description="Machine Record Code")
+    ebm_internal_data: Optional[str] = Field(None, description="EBM Internal Data")
+    ebm_signed_at: Optional[datetime] = Field(None)
     
     class Settings:
         collection_name = "transactions"
