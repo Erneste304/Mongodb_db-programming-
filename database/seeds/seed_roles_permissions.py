@@ -46,6 +46,11 @@ async def seed_roles():
             "level": 5
         },
         {
+            "name": "pump_attendant",
+            "description": "Staff responsible for fuel dispensing and sales",
+            "level": 5
+        },
+        {
             "name": "customer",
             "description": "Service recipient",
             "level": 6

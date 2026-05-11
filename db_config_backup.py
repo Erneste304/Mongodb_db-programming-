@@ -2,6 +2,14 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 import certifi
 from config import Config
+from beanie import init_beanie
+# Import all your Beanie Document models
+from backend.models.user import User, Role, Permission, UserPermission
+from backend.models.accounting import (
+    BankReconciliation, AccountsReceivable, AccountsPayable,
+    TaxRecord, FuelCostTracking, CommissionCalculation,
+    CorporateInvoice, DailyClosing, RURAComplianceReport
+)
 import time
 
 class CloudDatabase:

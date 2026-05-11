@@ -1,9 +1,19 @@
 from pymongo import MongoClient
+import certifi
+import sys
 
 # 1. Establish the connection to your local MongoDB server
 # Default port for MongoDB is 27017
-client = MongoClient(
-    "mongodb+srv://Erneste:123@cluster0.jkte2nw.mongodb.net/?appName=Cluster0")
+try:
+    client = MongoClient(
+        "mongodb+srv://Erneste:123@cluster0.jkte2nw.mongodb.net/?appName=Cluster0",
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=5000)
+    # Trigger a connection test
+    client.admin.command('ping')
+except Exception as e:
+    print(f"❌ Connection failed: {e}")
+    sys.exit(1)
 
 # 2. Access or create a database
 db = client["university_assignment"]

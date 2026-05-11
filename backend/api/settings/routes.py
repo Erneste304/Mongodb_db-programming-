@@ -218,3 +218,10 @@ async def get_business_rules(
         "approval_timeout_hours": settings.approval_timeout_hours,
         "auto_approve_small_amounts": settings.auto_approve_small_amounts
     }
+@router.get("/logs")
+async def get_audit_logs(
+    current_user: User = Depends(get_current_user)
+):
+    """Get visible audit logs"""
+    logs = await AuditLogService.get_visible_logs(current_user)
+    return logs

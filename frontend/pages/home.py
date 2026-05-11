@@ -1,200 +1,76 @@
-import reflex as rx
-from frontend.base_state import State
+from nicegui import ui
+from frontend.state import auth_state
 
-class HomeState(State):
-    """Home page state"""
-    pass
 
-def navbar() -> rx.Component:
-    return rx.box(
-        rx.hstack(
-            rx.hstack(
-                rx.icon("fuel", size=24, color="white"),
-                rx.heading("PETRO-SYNC", size="6", color="white", letter_spacing="2px"),
-                spacing="2",
-                align="center",
-            ),
-            rx.spacer(),
-            rx.hstack(
-                rx.link("Features", href="#features", color="white", variant="ghost"),
-                rx.link("Security", href="#security", color="white", variant="ghost"),
-                rx.link(
-                    rx.button(
-                        "Login to Portal",
-                        color_scheme="blue",
-                        variant="soft",
-                        size="3",
-                    ),
-                    href="/login",
-                ),
-                spacing="6",
-                align="center",
-            ),
-            width="100%",
-            max_width="1200px",
-            padding="1rem 2rem",
-            margin="0 auto",
-        ),
-        background="rgba(15, 23, 42, 0.8)",
-        backdrop_filter="blur(10px)",
-        position="sticky",
-        top="0",
-        z_index="100",
-        width="100%",
-        border_bottom="1px solid rgba(255, 255, 255, 0.1)",
-    )
+def home_page():
+    """Main landing page in NiceGUI"""
+    ui.query('body').style(
+        'background-color: #0f172a; color: white; margin: 0; font-family: "Inter", sans-serif;')
 
-def hero_section() -> rx.Component:
-    return rx.box(
-        rx.vstack(
-            rx.badge(
-                "v2.0 PRODUCTION READY",
-                color_scheme="blue",
-                variant="soft",
-                padding="0.5rem 1rem",
-                border_radius="full",
-            ),
-            rx.heading(
-                "Modern Petroleum Management System",
-                size="9",
-                weight="bold",
-                text_align="center",
-                background="linear-gradient(to right, #fff, #94a3b8)",
-                background_clip="text",
-                color="transparent",
-                line_height="1.2",
-            ),
-            rx.text(
-                "The all-in-one command center for fuel stations. Real-time inventory tracking, automated billing, and detailed financial audits at your fingertips.",
-                size="5",
-                color="rgba(255, 255, 255, 0.7)",
-                text_align="center",
-                max_width="800px",
-            ),
-            rx.hstack(
-                rx.link(
-                    rx.button(
-                        "Access Control Center",
-                        size="4",
-                        color_scheme="blue",
-                        variant="classic",
-                        padding="0 2rem",
-                    ),
-                    href="/login",
-                ),
-                rx.button(
-                    "View Demo",
-                    size="4",
-                    variant="outline",
-                    color_scheme="gray",
-                    padding="0 2rem",
-                ),
-                spacing="4",
-                margin_top="2rem",
-            ),
-            spacing="6",
-            align="center",
-            padding_top="8rem",
-            padding_bottom="12rem",
-        ),
-        background="radial-gradient(circle at 50% 50%, rgba(30, 58, 138, 0.2) 0%, transparent 50%), #0f172a",
-        width="100%",
-    )
+    # Navbar
+    with ui.header().classes('items-center justify-between px-8 py-4 bg-[#0f172a]/80 backdrop-blur-md border-b border-white/10'):
+        with ui.row().classes('items-center gap-2'):
+            ui.icon('local_gas_station', color='white').classes('text-2xl')
+            ui.label(
+                'PETRO-SYNC').classes('text-xl font-bold tracking-widest text-white')
 
-def feature_card(icon: str, title: str, description: str) -> rx.Component:
-    return rx.card(
-        rx.vstack(
-            rx.box(
-                rx.icon(icon, size=32, color="#3b82f6"),
-                padding="1rem",
-                background="rgba(59, 130, 246, 0.1)",
-                border_radius="1rem",
-            ),
-            rx.heading(title, size="4", margin_top="1rem"),
-            rx.text(description, size="2", color="rgba(255, 255, 255, 0.6)"),
-            align="start",
-            spacing="3",
-        ),
-        variant="surface",
-        background="rgba(30, 41, 59, 0.5)",
-        border="1px solid rgba(255, 255, 255, 0.1)",
-        padding="2rem",
-    )
+        with ui.row().classes('items-center gap-6'):
+            ui.link('Features', '#features').classes(
+                'text-white hover:text-blue-400 no-underline')
+            ui.link('Security', '#security').classes(
+                'text-white hover:text-blue-400 no-underline')
+            ui.button('Login to Portal', on_click=lambda: ui.navigate.to('/login')).props(
+                'flat color=blue').classes('bg-blue-600/20 text-blue-400 rounded-lg px-4')
 
-def features_section() -> rx.Component:
-    return rx.box(
-        rx.vstack(
-            rx.heading("Engineered for Excellence", size="8", text_align="center"),
-            rx.text(
-                "Built to handle high-volume operations with precision and speed.",
-                size="4",
-                color="rgba(255, 255, 255, 0.5)",
-                margin_bottom="4rem",
-            ),
-            rx.grid(
-                feature_card(
-                    "database", 
-                    "MongoDB Powered", 
-                    "Massive scalability for millions of transactions with Beanie ODM integration."
-                ),
-                feature_card(
-                    "shield-check", 
-                    "Secure Authentication", 
-                    "Enterprise-grade JWT tokens and role-based access control for your data."
-                ),
-                feature_card(
-                    "zap", 
-                    "Real-time Analytics", 
-                    "Instant dashboard updates for fuel levels, sales, and staff activity."
-                ),
-                feature_card(
-                    "file-text", 
-                    "Automated Invoicing", 
-                    "Generate EBM-compliant receipts and financial reports with one click."
-                ),
-                columns="4",
-                spacing="4",
-                width="100%",
-            ),
-            spacing="4",
-            align="center",
-            padding="6rem 2rem",
-            max_width="1200px",
-            margin="0 auto",
-        ),
-        id="features",
-        background="#0f172a",
-        width="100%",
-    )
+    # Hero Section
+    with ui.column().classes('w-full items-center py-24 px-4 gap-8').props('id=hero-section'):
+        ui.label('v2.0 PRODUCTION READY').classes(
+            'bg-blue-600/20 text-blue-400 px-4 py-1 rounded-full text-sm font-semibold')
 
-def footer() -> rx.Component:
-    return rx.box(
-        rx.divider(background="rgba(255, 255, 255, 0.1)"),
-        rx.hstack(
-            rx.text("© 2024 Petro-Sync Management Systems. All rights reserved.", size="1", color="gray"),
-            rx.spacer(),
-            rx.hstack(
-                rx.icon("git_branch", size=18, color="gray"),
-                rx.icon("message_square", size=18, color="gray"),
-                spacing="4",
-            ),
-            width="100%",
-            padding="2rem 0",
-            max_width="1200px",
-            margin="0 auto",
-        ),
-        background="#0f172a",
-        width="100%",
-        padding="0 2rem",
-    )
+        ui.label('Modern Petroleum Management System').classes(
+            'text-6xl font-bold text-center leading-tight max-w-4xl text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400')
 
-def home_page() -> rx.Component:
-    return rx.box(
-        navbar(),
-        hero_section(),
-        features_section(),
-        footer(),
-        background="#0f172a",
-        color="white",
-        min_height="100vh",
-    )
+        ui.label('The all-in-one command center for fuel stations. Real-time inventory tracking, automated billing, and detailed financial audits at your fingertips.').classes(
+            'text-xl text-slate-400 text-center max-w-3xl leading-relaxed')
+
+        with ui.row().classes('gap-4 mt-8'):
+            ui.button('Access Control Center', on_click=lambda: ui.navigate.to('/login')).classes(
+                'bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-bold transition-all')
+            ui.button('View Demo').props('outline color=white').classes(
+                'px-8 py-3 rounded-lg text-lg font-bold border-slate-700 text-slate-300')
+
+    # Features Section
+    with ui.column().classes('w-full items-center py-20 px-8 gap-4 bg-[#0f172a]').props('id=features'):
+        ui.label('Engineered for Excellence').classes(
+            'text-4xl font-bold text-center text-white')
+        ui.label('Built to handle high-volume operations with precision and speed.').classes(
+            'text-lg text-slate-500 text-center mb-12')
+
+        with ui.grid(columns=4).classes('w-full max-w-7xl gap-6'):
+            features = [
+                ('database', 'MongoDB Powered',
+                 'Massive scalability for millions of transactions with Beanie ODM integration.'),
+                ('security', 'Secure Auth',
+                 'Enterprise-grade JWT tokens and role-based access control for your data.'),
+                ('bolt', 'Real-time Analytics',
+                 'Instant dashboard updates for fuel levels, sales, and staff activity.'),
+                ('description', 'Automated Invoicing',
+                 'Generate EBM-compliant receipts and financial reports with one click.')
+            ]
+
+            for icon, title, desc in features:
+                with ui.card().classes('bg-slate-800/50 border border-white/10 p-8 rounded-2xl gap-4 hover:border-blue-500/50 transition-all'):
+                    with ui.column().classes('bg-blue-500/10 p-3 rounded-xl'):
+                        ui.icon(icon, color='blue').classes('text-3xl')
+                    ui.label(title).classes('text-xl font-bold text-white')
+                    ui.label(desc).classes('text-slate-400 leading-relaxed')
+
+    # Footer
+    with ui.footer().classes('bg-[#0f172a] border-t border-white/10 py-12 px-8'):
+        with ui.row().classes('w-full max-w-7xl mx-auto justify-between items-center'):
+            ui.label('© 2024 Petro-Sync Management Systems. All rights reserved.').classes(
+                'text-slate-500 text-sm')
+            with ui.row().classes('gap-6'):
+                ui.icon('account_tree', color='grey').classes(
+                    'text-xl cursor-pointer')
+                ui.icon('chat', color='grey').classes('text-xl cursor-pointer')

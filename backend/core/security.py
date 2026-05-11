@@ -13,24 +13,34 @@ async def get_current_user(
 ) -> User:
     """Get current user from JWT token"""
     
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    def credentials_exception(reason: str = "Could not validate credentials"):
+        return HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=reason,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     try:
         token = credentials.credentials
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+        user_id: str = payload.get("sub")
+        print(f"DEBUG: JWT sub claim (user_id): {user_id}")
+        if user_id is None:
+            raise credentials_exception("Token missing 'sub' claim")
+    except JWTError as e:
+        print(f"DEBUG: JWT Error: {e}")
+        raise credentials_exception(f"JWT Decode Error: {str(e)}")
     
-    user = await User.find_one(User.username == username)
+    from beanie import PydanticObjectId
+    try:
+        user = await User.get(PydanticObjectId(user_id), fetch_links=True)
+        print(f"DEBUG: User lookup result: {user}")
+    except Exception as e:
+        print(f"DEBUG: Error during User.get with {user_id}: {e}")
+        raise credentials_exception(f"Database Error: {str(e)}")
+
     if user is None:
-        raise credentials_exception
+        raise credentials_exception("User not found in database")
     
     if not user.is_active:
         raise HTTPException(
