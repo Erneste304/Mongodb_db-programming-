@@ -13,6 +13,7 @@ from backend.models.staff_management import (
     PumpCalibrationRecord, SupplierDelivery, CustomerComplaint,
     ShiftStatus, AttendanceStatus
 )
+from backend.models.accounting import DailyClosing, CommissionCalculation
 from backend.core.security import get_current_user, require_role_level
 from backend.models.user import User
 from backend.services.audit_service import AuditLogService
@@ -97,11 +98,32 @@ async def get_staff_schedule(
     ]
 
 
+@router.get("/schedules/all")
+async def get_all_schedules(
+    current_user: User = Depends(require_role_level(2))
+):
+    """Get all staff schedules - Admin oversight"""
+    schedules = await StaffSchedule.find_all().sort("-shift_date").to_list()
+    return [
+        {
+            "schedule_id": s.schedule_id,
+            "employee": s.user_id,
+            "shift_date": s.shift_date.isoformat().split('T')[0],
+            "start_time": s.start_time.isoformat(),
+            "end_time": s.end_time.isoformat(),
+            "role": s.role_during_shift,
+            "status": s.status.value
+        }
+        for s in schedules
+    ]
+
+
 # ==================== ATTENDANCE ====================
 
 class RecordAttendanceRequest(BaseModel):
     schedule_id: str
     user_id: str
+    attendance_date: Optional[datetime] = None
     status: AttendanceStatus
     check_in_time: Optional[datetime] = None
     check_out_time: Optional[datetime] = None
@@ -125,7 +147,7 @@ async def record_attendance(
         attendance_id=f"ATT-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
         user_id=request.user_id,
         schedule_id=request.schedule_id,
-        attendance_date=datetime.now(timezone.utc),
+        attendance_date=request.attendance_date or datetime.now(timezone.utc),
         status=request.status,
         check_in_time=request.check_in_time,
         check_out_time=request.check_out_time,
@@ -177,6 +199,7 @@ async def get_all_attendance(
     return [
         {
             "employee": r.user_id,  # Assuming user_id can be mapped to employee name later
+            "attendance_id": r.attendance_id,  # Include attendance_id for unique row key
             "date": r.attendance_date.isoformat().split('T')[0],
             "status": r.status.value,
             "check_in": r.check_in_time.isoformat() if r.check_in_time else None,
@@ -477,6 +500,24 @@ async def get_safety_inspections(
     ]
 
 
+@router.get("/safety-inspections/all")
+async def get_all_safety_inspections(
+    current_user: User = Depends(require_role_level(2))
+):
+    """Get all safety inspections - Admin oversight"""
+    inspections = await SafetyComplianceRecord.find_all().sort("-inspection_date").to_list()
+    return [
+        {
+            "record_id": i.record_id,
+            "inspection_type": i.inspection_type,
+            "date": i.inspection_date.isoformat().split('T')[0],
+            "status": i.status,
+            "inspected_by": i.inspected_by
+        }
+        for i in inspections
+    ]
+
+
 # ==================== PUMP CALIBRATION ====================
 
 @router.get("/pump-calibrations/pending")
@@ -693,3 +734,48 @@ async def resolve_complaint(
     )
 
     return {"message": "Complaint resolved"}
+
+
+# ==================== ACCOUNTING / CLOSING ====================
+
+@router.post("/daily-closing")
+async def perform_daily_closing(
+    current_user: User = Depends(require_role_level(2))
+):
+    """Perform the daily closing process - Admin/Accountant"""
+
+    closing = DailyClosing(
+        closing_id=f"CLOSE-{datetime.now(timezone.utc).strftime('%Y%m%d')}",
+        date=datetime.now(timezone.utc),
+        performed_by=str(current_user.id),
+        status="completed"
+    )
+
+    await closing.insert()
+
+    await AuditLogService.log_action(
+        user=current_user,
+        action="performed_daily_closing",
+        resource_type="daily_closing",
+        resource_id=str(closing.id),
+        old_value={},
+        new_value={"date": closing.date.isoformat()}
+    )
+
+    return {"message": "Day closed successfully", "closing_id": closing.closing_id}
+
+
+@router.post("/commissions/calculate")
+async def calculate_commissions(
+    month: int,
+    year: int,
+    current_user: User = Depends(require_role_level(2))
+):
+    """Calculate staff commissions - Admin/Accountant"""
+
+    # Placeholder for actual calculation logic
+    return {
+        "message": f"Commissions calculated for {month}/{year}",
+        "total_calculated": 0.0,
+        "status": "success"
+    }

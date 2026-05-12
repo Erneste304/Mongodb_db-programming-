@@ -39,6 +39,68 @@ class AdminDashboardState(State):
     # System settings state
     system_settings: dict = {}
     
+    # Operations state
+    station_status: str = "closed"
+    fuel_deliveries: list[dict] = []
+    inventory_levels: list[dict] = []
+    complaints: list[dict] = []
+    safety_checks: list[dict] = []
+    pump_calibrations: list[dict] = []
+    timesheets: list[dict] = []
+    
+    # Opening/closing procedures
+    opening_cash: float = 0
+    closing_cash: float = 0
+    pump_readings: list[dict] = []
+    
+    async def load_operations_data(self):
+        """Load operations data"""
+        try:
+            # Load fuel deliveries
+            self.fuel_deliveries = api_client.get("/inventory/deliveries")
+            
+            # Load inventory levels
+            self.inventory_levels = api_client.get("/inventory/tanks")
+            
+            # Load complaints
+            self.complaints = api_client.get("/complaints/complaints")
+            
+            # Load safety checks
+            self.safety_checks = api_client.get("/safety/checks")
+            
+            # Load pump calibrations
+            self.pump_calibrations = api_client.get("/staff_management/pump-calibrations")
+            
+            # Load timesheets
+            self.timesheets = api_client.get("/staff_management/timesheets")
+            
+        except Exception as e:
+            # Fallback mock data
+            self.fuel_deliveries = []
+            self.inventory_levels = []
+            self.complaints = []
+            self.safety_checks = []
+            self.pump_calibrations = []
+            self.timesheets = []
+    
+    async def open_station(self):
+        """Open station procedure"""
+        try:
+            api_client.post("/operations/open-station", {"opening_cash": self.opening_cash})
+            self.station_status = "open"
+            rx.toast.success("Station opened successfully")
+        except Exception as e:
+            rx.toast.error(f"Failed to open station: {str(e)}")
+    
+    async def close_station(self):
+        """Close station procedure"""
+        try:
+            api_client.post("/operations/close-station", {"closing_cash": self.closing_cash})
+            self.station_status = "closed"
+            rx.toast.success("Station closed successfully")
+        except Exception as e:
+            rx.toast.error(f"Failed to close station: {str(e)}")
+    
     def set_selected_tab(self, tab: str):
         self.selected_tab = tab
     
@@ -167,6 +229,7 @@ class AdminDashboardState(State):
         self.load_approvals()
         self.load_audit_logs()
         self.load_visitor_logs()
+        self.load_operations_data()
 
 
 def staff_card(staff: StaffMember) -> rx.Component:
@@ -449,6 +512,8 @@ def admin_dashboard_page() -> rx.Component:
                     rx.tabs.trigger("Visitor Logs", value="visitors"),
                     rx.tabs.trigger("Audit Logs", value="audit"),
                     rx.tabs.trigger("Reports", value="reports"),
+                    rx.tabs.trigger("Operations", value="operations"),
+                    rx.tabs.trigger("Opening/Closing", value="procedures"),
                 ),
                 rx.tabs.content(
                     # Staff Management Tab
@@ -682,6 +747,80 @@ def admin_dashboard_page() -> rx.Component:
                     # Reports Tab
                     rx.heading("Reports", size="6"),
                     value="reports"
+                ),
+                rx.tabs.content(
+                    # Operations Tab
+                    rx.vstack(
+                        rx.heading("Daily Operations", size="6"),
+                        rx.card(
+                            rx.vstack(
+                                rx.heading("Fuel Deliveries", size="4"),
+                                rx.foreach(
+                                    AdminDashboardState.fuel_deliveries,
+                                    lambda delivery: rx.card(
+                                        rx.hstack(
+                                            rx.text(f"{delivery.get('delivery_id', '')}"),
+                                            rx.text(f"{delivery.get('fuel_type', '')}"),
+                                            rx.text(f"{delivery.get('quantity_liters', 0)} L"),
+                                            rx.text(f"{delivery.get('delivery_date', '')}")
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        rx.card(
+                            rx.vstack(
+                                rx.heading("Inventory Levels", size="4"),
+                                rx.foreach(
+                                    AdminDashboardState.inventory_levels,
+                                    lambda tank: rx.card(
+                                        rx.hstack(
+                                            rx.text(f"{tank.get('tank_id', '')}"),
+                                            rx.text(f"{tank.get('fuel_type', '')}"),
+                                            rx.text(f"{tank.get('current_level', 0)} / {tank.get('capacity', 0)} L")
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        width="100%"
+                    ),
+                    value="operations"
+                ),
+                rx.tabs.content(
+                    # Opening/Closing Procedures Tab
+                    rx.vstack(
+                        rx.heading("Station Opening/Closing Procedures", size="6"),
+                        rx.card(
+                            rx.vstack(
+                                rx.heading("Current Status", size="4"),
+                                rx.badge(
+                                    rx.cond(AdminDashboardState.station_status == "open", "STATION OPEN", "STATION CLOSED"),
+                                    color_scheme=rx.cond(AdminDashboardState.station_status == "open", "green", "red")
+                                ),
+                                rx.input(
+                                    placeholder="Opening Cash (RWF)",
+                                    on_change=lambda v: setattr(AdminDashboardState, 'opening_cash', float(v) if v else 0)
+                                ),
+                                rx.button(
+                                    "Open Station",
+                                    on_click=AdminDashboardState.open_station,
+                                    color_scheme="green"
+                                ),
+                                rx.input(
+                                    placeholder="Closing Cash (RWF)",
+                                    on_change=lambda v: setattr(AdminDashboardState, 'closing_cash', float(v) if v else 0)
+                                ),
+                                rx.button(
+                                    "Close Station",
+                                    on_click=AdminDashboardState.close_station,
+                                    color_scheme="red"
+                                )
+                            )
+                        ),
+                        width="100%"
+                    ),
+                    value="procedures"
                 ),
                 on_change=AdminDashboardState.set_selected_tab,
                 value=AdminDashboardState.selected_tab

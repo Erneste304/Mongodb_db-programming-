@@ -1,6 +1,7 @@
 from nicegui import ui, app
 from frontend.state import auth_state, dashboard_layout
 import httpx
+import random
 
 
 def inventory_page():
@@ -38,10 +39,54 @@ def inventory_page():
         with ui.tab_panels(tabs, value=tank_tab).classes('w-full bg-transparent'):
             # Tank Overview Panel
             with ui.tab_panel(tank_tab):
+                # Add Tank Dialog
+                with ui.dialog() as tank_dialog, ui.card().classes('w-96'):
+                    ui.label('Add New Fuel Tank').classes(
+                        'text-xl font-bold mb-4')
+                    tank_num = ui.input(
+                        'Tank Number (e.g. T-01)').classes('w-full')
+                    fuel_type = ui.select(
+                        ['petrol', 'diesel', 'kerosene'], label='Fuel Type').classes('w-full')
+                    capacity = ui.number(
+                        'Capacity (Liters)', value=10000).classes('w-full')
+
+                    async def save_tank():
+                        if not tank_num.value:
+                            ui.notify('Tank number is required',
+                                      type='warning')
+                            return
+
+                        token = app.storage.user.get('token')
+                        payload = {
+                            "tank_id": f"TANK-{random.randint(1000, 9999)}",
+                            "tank_number": tank_num.value,
+                            "fuel_type": fuel_type.value,
+                            "capacity_liters": capacity.value,
+                            "current_level_liters": 0
+                        }
+
+                        async with httpx.AsyncClient() as client:
+                            url = f"{auth_state.api_base_url}/inventory/tanks"
+                            resp = await client.post(url, json=payload, headers={'Authorization': f'Bearer {token}'})
+                            if resp.status_code in (200, 201):
+                                ui.notify('Tank added successfully',
+                                          type='positive')
+                                tank_dialog.close()
+                                load_inventory()
+                            else:
+                                ui.notify(
+                                    f"Error: {resp.text}", type='negative')
+
+                    with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                        ui.button('Cancel', on_click=tank_dialog.close).props(
+                            'flat')
+                        ui.button('Save', on_click=save_tank).props(
+                            'elevated color=green')
+
                 with ui.row().classes('w-full justify-between items-center mb-4'):
                     ui.label('Fuel Tanks').classes('text-xl font-bold')
-                    ui.button('Add New Tank', on_click=lambda: ui.notify(
-                        'Add tank dialog', type='info')).props('elevated icon=add')
+                    ui.button('Add New Tank', on_click=tank_dialog.open).props(
+                        'elevated icon=add')
 
                 tank_table = ui.table(
                     columns=[

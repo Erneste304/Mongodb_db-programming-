@@ -125,7 +125,6 @@ def dashboard_page():
                     ui.label('Recent Sales (RWF)').classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
-
     dashboard_layout(content)
 
 
@@ -388,8 +387,56 @@ def create_nicegui_app(fastapi_app_instance: FastAPI):
     @app.on_startup
     async def startup():
         """Initialize database connection when NiceGUI starts"""
+        from backend.models.user import User, Role, Permission, UserPermission
+        from backend.models.sales import Transaction, Customer
+        from backend.models.shift import Shift
+        from backend.models.staff_management import (
+            CustomerComplaint, StaffSchedule, AttendanceRecord, Timesheet,
+            StationOperationLog, SafetyComplianceRecord, PumpCalibrationRecord,
+            SupplierDelivery
+        )
+        from backend.models.shop import ShopItem, ShopSale
+        from backend.models.pump import Pump
+        from backend.models.pricing import FuelPricing, PartnerAgreement
+        from backend.models.audit_log import AuditLog
+        from backend.models.system_settings import SystemSettings
+        from backend.models.approval_request import ApprovalRequest
+        from backend.models.accounting import DailyClosing, CommissionCalculation
+        from backend.models.inventory import Tank, FuelDelivery, InventoryRecord
+
+        # List of models to initialize with Beanie
+        models = [
+            User,
+            Role,
+            Permission,
+            UserPermission,
+            Transaction,
+            Customer,
+            Shift,
+            CustomerComplaint,
+            StaffSchedule,
+            AttendanceRecord,
+            Timesheet,
+            StationOperationLog,
+            SafetyComplianceRecord,
+            PumpCalibrationRecord,
+            SupplierDelivery,
+            ShopItem,
+            ShopSale,
+            Pump,
+            FuelPricing,
+            PartnerAgreement,
+            AuditLog,
+            SystemSettings,
+            ApprovalRequest,
+            DailyClosing,
+            CommissionCalculation,
+            Tank,
+            FuelDelivery,
+            InventoryRecord
+        ]
         db.connect()
-        await db.init_beanie()
+        await db.init_beanie(models)
 
     # Route Guard: Check authentication before serving any page
     @app.middleware("http")
@@ -403,6 +450,39 @@ def create_nicegui_app(fastapi_app_instance: FastAPI):
 
         if not app.storage.user.get('authenticated', False):
             return RedirectResponse('/login')
+
+        # Role-Based Access Control (RBAC) for Frontend Routes
+        user_data = app.storage.user.get('user', {})
+        # Normalize role for comparison
+        role = str(user_data.get('role', '')).lower()
+        path = request.url.path
+
+        # Define allowed routes per role
+        role_permissions = {
+            'superadmin': ['/users', '/permissions', '/pricing', '/partners', '/settings', '/audit', '/dashboard'],
+            'admin': ['/schedules', '/attendance', '/timesheets', '/operations', '/safety', '/calibration', '/deliveries', '/complaints', '/dashboard'],
+            'accountant': ['/reconciliation', '/receivable', '/payable', '/tax', '/costs', '/commissions', '/closing', '/compliance', '/dashboard'],
+            'inventory': ['/inventory', '/dashboard'],
+            'receptionist': ['/sales', '/dashboard'],
+            'pump_attendant': ['/dashboard']
+        }
+
+        # Superadmins can access everything
+        if role == 'superadmin':
+            return await call_next(request)
+
+        # Check if path is protected and if user role is authorized
+        protected_routes = [p for routes in role_permissions.values()
+                            for p in routes if p != '/dashboard']
+
+        if path in protected_routes:
+            allowed_paths = role_permissions.get(role, [])
+            if path not in allowed_paths:
+                # Log the attempted unauthorized access and redirect
+                print(
+                    f"🚫 [SECURITY] Unauthorized access attempt by {user_data.get('username')} ({role}) to {path}")
+                return RedirectResponse('/dashboard')
+
         return await call_next(request)
 
     # Mount the FastAPI backend onto the NiceGUI app to handle API routes

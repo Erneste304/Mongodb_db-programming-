@@ -2,6 +2,7 @@ import reflex as rx
 import requests
 from frontend.utils.api_client import api_client
 from frontend.base_state import State
+from datetime import datetime
 
 
 class ReceptionistDashboardState(State):
@@ -19,6 +20,16 @@ class ReceptionistDashboardState(State):
     processing_status: str = ""
     show_receipt: bool = False
     last_transaction: dict = {}
+    
+    # New features state
+    shop_items: list[dict] = []
+    shop_sales: list[dict] = []
+    pumps: list[dict] = []
+    shifts: list[dict] = []
+    complaints: list[dict] = []
+    petrol_sales: float = 0.0
+    diesel_sales: float = 0.0
+    kerosene_sales: float = 0.0
     
     def set_selected_tab(self, tab: str):
         self.selected_tab = tab
@@ -44,10 +55,45 @@ class ReceptionistDashboardState(State):
             report = api_client.get("/reports/daily-summary")
             self.today_transactions = report.get("total_transactions", 0)
             self.today_sales = report.get("total_sales", 0)
+            
+            # Load fuel type sales
+            sales_report = api_client.get("/reports/sales/daily")
+            sales_by_fuel = sales_report.get("sales_by_fuel_type", {})
+            self.petrol_sales = sales_by_fuel.get("petrol", 0)
+            self.diesel_sales = sales_by_fuel.get("diesel", 0)
+            self.kerosene_sales = sales_by_fuel.get("kerosene", 0)
         except Exception as e:
             # Fallback values
             self.today_transactions = 45
             self.today_sales = 3450000
+    
+    async def load_shop_items(self):
+        """Load shop inventory"""
+        try:
+            self.shop_items = api_client.get("/shop/items")
+        except Exception as e:
+            self.shop_items = []
+    
+    async def load_pumps(self):
+        """Load pump status"""
+        try:
+            self.pumps = api_client.get("/pump/pumps")
+        except Exception as e:
+            self.pumps = []
+    
+    async def load_shifts(self):
+        """Load shift history"""
+        try:
+            self.shifts = api_client.get("/shift/shifts")
+        except Exception as e:
+            self.shifts = []
+    
+    async def load_complaints(self):
+        """Load complaint history"""
+        try:
+            self.complaints = api_client.get("/complaints/complaints")
+        except Exception as e:
+            self.complaints = []
     
     async def process_sale(self):
         """Process a new sale transaction"""
@@ -161,6 +207,11 @@ def receptionist_dashboard_page() -> rx.Component:
                     rx.tabs.trigger("Process Sale", value="sales"),
                     rx.tabs.trigger("Transactions", value="transactions"),
                     rx.tabs.trigger("Customers", value="customers"),
+                    rx.tabs.trigger("Shop Sales", value="shop"),
+                    rx.tabs.trigger("Pump Management", value="pump"),
+                    rx.tabs.trigger("Shift Management", value="shift"),
+                    rx.tabs.trigger("Complaints", value="complaints"),
+                    rx.tabs.trigger("Fuel Sales Report", value="fuel_report"),
                 ),
                 rx.tabs.content(
                     # Process Sale Tab
@@ -261,6 +312,114 @@ def receptionist_dashboard_page() -> rx.Component:
                         width="100%"
                     ),
                     value="customers"
+                ),
+                rx.tabs.content(
+                    # Shop Sales Tab
+                    rx.vstack(
+                        rx.heading("Shop Sales", size="6"),
+                        rx.divider(),
+                        rx.card(
+                            rx.vstack(
+                                rx.text("Shop Inventory", font_weight="bold"),
+                                rx.text("Select items and complete shop sales"),
+                                spacing="2"
+                            ),
+                            padding="1.5rem"
+                        ),
+                        width="100%"
+                    ),
+                    value="shop"
+                ),
+                rx.tabs.content(
+                    # Pump Management Tab
+                    rx.vstack(
+                        rx.heading("Pump Management", size="6"),
+                        rx.divider(),
+                        rx.card(
+                            rx.vstack(
+                                rx.text("Pump Status", font_weight="bold"),
+                                rx.text("View and manage pump availability"),
+                                spacing="2"
+                            ),
+                            padding="1.5rem"
+                        ),
+                        width="100%"
+                    ),
+                    value="pump"
+                ),
+                rx.tabs.content(
+                    # Shift Management Tab
+                    rx.vstack(
+                        rx.heading("Shift Management", size="6"),
+                        rx.divider(),
+                        rx.card(
+                            rx.vstack(
+                                rx.text("Start/End Shift", font_weight="bold"),
+                                rx.text("Manage shift opening and closing with cash counting"),
+                                spacing="2"
+                            ),
+                            padding="1.5rem"
+                        ),
+                        width="100%"
+                    ),
+                    value="shift"
+                ),
+                rx.tabs.content(
+                    # Complaints Tab
+                    rx.vstack(
+                        rx.heading("Customer Complaints", size="6"),
+                        rx.divider(),
+                        rx.card(
+                            rx.vstack(
+                                rx.text("Submit Complaint", font_weight="bold"),
+                                rx.text("Record customer complaints and track resolution"),
+                                spacing="2"
+                            ),
+                            padding="1.5rem"
+                        ),
+                        width="100%"
+                    ),
+                    value="complaints"
+                ),
+                rx.tabs.content(
+                    # Fuel Sales Report Tab
+                    rx.vstack(
+                        rx.heading("Daily Sales by Fuel Type", size="6"),
+                        rx.divider(),
+                        rx.hstack(
+                            rx.card(
+                                rx.vstack(
+                                    rx.text("Petrol Sales", color="green"),
+                                    rx.heading(f"{ReceptionistDashboardState.petrol_sales:,.0f}", size="7"),
+                                    rx.text("RWF", color="gray"),
+                                    spacing="1"
+                                ),
+                                padding="1.5rem"
+                            ),
+                            rx.card(
+                                rx.vstack(
+                                    rx.text("Diesel Sales", color="blue"),
+                                    rx.heading(f"{ReceptionistDashboardState.diesel_sales:,.0f}", size="7"),
+                                    rx.text("RWF", color="gray"),
+                                    spacing="1"
+                                ),
+                                padding="1.5rem"
+                            ),
+                            rx.card(
+                                rx.vstack(
+                                    rx.text("Kerosene Sales", color="purple"),
+                                    rx.heading(f"{ReceptionistDashboardState.kerosene_sales:,.0f}", size="7"),
+                                    rx.text("RWF", color="gray"),
+                                    spacing="1"
+                                ),
+                                padding="1.5rem"
+                            ),
+                            spacing="4",
+                            width="100%"
+                        ),
+                        width="100%"
+                    ),
+                    value="fuel_report"
                 ),
                 on_change=ReceptionistDashboardState.set_selected_tab,
                 value=ReceptionistDashboardState.selected_tab

@@ -24,58 +24,23 @@ from backend.models.accounting import (
 
 class Database:
     client: AsyncIOMotorClient = None
-    
+
     def connect(self):
         """Connect to MongoDB"""
         self.client = AsyncIOMotorClient(settings.MONGODB_URI)
         print(f"Connected to MongoDB at {settings.MONGODB_URI}")
-    
+
     def close(self):
         """Close MongoDB connection"""
         if self.client:
             self.client.close()
             print("Closed MongoDB connection")
-    
-    async def init_beanie(self):
+
+    async def init_beanie(self, document_models: List):
         """Initialize Beanie ODM"""
         await init_beanie(
             database=self.client[settings.DATABASE_NAME],
-            document_models=[
-                User,
-                Role,
-                Permission,
-                UserPermission,
-                AuditLog,
-                ApprovalRequest,
-                Transaction,
-                Customer,
-                Tank,
-                FuelDelivery,
-                InventoryRecord,
-                Payment,
-                DailyCashReconciliation,
-                PettyCash,
-                FuelPricing,
-                PartnerAgreement,
-                SystemSettings,
-                StaffSchedule,
-                AttendanceRecord,
-                Timesheet,
-                StationOperationLog,
-                SafetyComplianceRecord,
-                PumpCalibrationRecord,
-                SupplierDelivery,
-                CustomerComplaint,
-                BankReconciliation,
-                AccountsReceivable,
-                AccountsPayable,
-                TaxRecord,
-                FuelCostTracking,
-                CommissionCalculation,
-                CorporateInvoice,
-                DailyClosing,
-                RURAComplianceReport
-            ]
+            document_models=document_models
         )
         print("Initialized Beanie ODM")
 

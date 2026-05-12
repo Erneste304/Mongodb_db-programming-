@@ -16,6 +16,20 @@ from backend.models.accounting import (
     TaxRecord, FuelCostTracking, CommissionCalculation,
     CorporateInvoice, DailyClosing, RURAComplianceReport
 )
+from backend.models.shop import ShopItem, ShopSale
+from backend.models.pump import Pump, PumpSession
+from backend.models.shift import Shift, CashCount
+from backend.models.consumption import ConsumptionRecord, ReorderPrediction
+from backend.models.lubricant import LubricantItem, LubricantStockCount
+from backend.models.supplier import Supplier, DeliverySchedule
+from backend.models.safety import SafetyCheck, SafetyIncident
+from backend.models.stock_count import StockCount, StockCountItem
+from backend.models.inspection import RURAInspection, InspectionDocument
+from backend.models.billing import Invoice, InvoiceItem, MonthlyStatement, Payment as CustomerPayment
+from backend.models.visitor import VisitorLog, BusinessPartner
+from backend.models.station import Station
+from backend.models.expenditure import ExpenditureRequest
+from backend.models.discrepancy import Discrepancy
 
 __all__ = [
     "User",
@@ -51,5 +65,32 @@ __all__ = [
     "CommissionCalculation",
     "CorporateInvoice",
     "DailyClosing",
-    "RURAComplianceReport"
+    "RURAComplianceReport",
+    "ShopItem",
+    "ShopSale",
+    "Pump",
+    "PumpSession",
+    "Shift",
+    "CashCount",
+    "ConsumptionRecord",
+    "ReorderPrediction",
+    "LubricantItem",
+    "LubricantStockCount",
+    "Supplier",
+    "DeliverySchedule",
+    "SafetyCheck",
+    "SafetyIncident",
+    "StockCount",
+    "StockCountItem",
+    "RURAInspection",
+    "InspectionDocument",
+    "Invoice",
+    "InvoiceItem",
+    "MonthlyStatement",
+    "CustomerPayment",
+    "VisitorLog",
+    "BusinessPartner",
+    "Station",
+    "ExpenditureRequest",
+    "Discrepancy"
 ]

@@ -23,23 +23,85 @@ from backend.api.pricing.routes import router as pricing_router
 from backend.api.settings.routes import router as settings_router
 from backend.api.staff_management.routes import router as staff_management_router
 from backend.api.accounting.routes import router as accounting_router
+from backend.api.complaints.routes import router as complaints_router
+from backend.api.shop.routes import router as shop_router
+from backend.api.pump.routes import router as pump_router
+from backend.api.shift.routes import router as shift_router
+from backend.api.consumption.routes import router as consumption_router
+from backend.api.lubricant.routes import router as lubricant_router
+from backend.api.supplier.routes import router as supplier_router
+from backend.api.safety.routes import router as safety_router
+from backend.api.stock_count.routes import router as stock_count_router
+from backend.api.inspection.routes import router as inspection_router
+from backend.api.billing.routes import router as billing_router
+from backend.api.visitor.routes import router as visitor_router
+from backend.api.partner.routes import router as partner_router
+from backend.api.station.routes import router as station_router
+from backend.api.expenditure.routes import router as expenditure_router
+from backend.api.discrepancy.routes import router as discrepancy_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Ensure models are imported for initialization
+    from backend.models.user import User, Role, Permission, UserPermission
+    from backend.models.sales import Transaction, Customer
+    from backend.models.shift import Shift
+    from backend.models.staff_management import (
+        CustomerComplaint, StaffSchedule, AttendanceRecord, Timesheet,
+        StationOperationLog, SafetyComplianceRecord, PumpCalibrationRecord,
+        SupplierDelivery
+    )
+    from backend.models.shop import ShopItem, ShopSale
+    from backend.models.pump import Pump
+    from backend.models.pricing import FuelPricing, PartnerAgreement
+    from backend.models.audit_log import AuditLog
+    from backend.models.system_settings import SystemSettings
+    from backend.models.approval_request import ApprovalRequest
+    from backend.models.accounting import DailyClosing, CommissionCalculation
+    from backend.models.inventory import Tank, FuelDelivery, InventoryRecord
+
+    models = [
+        User,
+        Role,
+        Permission,
+        UserPermission,
+        Transaction,
+        Customer,
+        Shift,
+        CustomerComplaint,
+        StaffSchedule,
+        AttendanceRecord,
+        Timesheet,
+        StationOperationLog,
+        SafetyComplianceRecord,
+        PumpCalibrationRecord,
+        SupplierDelivery,
+        ShopItem,
+        ShopSale,
+        Pump,
+        FuelPricing,
+        PartnerAgreement,
+        AuditLog,
+        SystemSettings,
+        ApprovalRequest,
+        DailyClosing,
+        CommissionCalculation,
+        Tank,
+        FuelDelivery,
+        InventoryRecord
+    ]
+
+    # Re-initialize to be safe (idempotent)
     db.connect()
-    await db.init_beanie()
+    await db.init_beanie(models)
     yield
     # Shutdown
     db.close()
 
 
-app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
-    lifespan=lifespan
-)
+app = FastAPI(title=settings.APP_NAME,
+              version=settings.APP_VERSION, lifespan=lifespan)
 
 # CORS middleware
 app.add_middleware(
@@ -80,6 +142,22 @@ app.include_router(pricing_router)
 app.include_router(settings_router)
 app.include_router(staff_management_router)
 app.include_router(accounting_router)
+app.include_router(complaints_router)
+app.include_router(shop_router)
+app.include_router(pump_router)
+app.include_router(shift_router)
+app.include_router(consumption_router)
+app.include_router(lubricant_router)
+app.include_router(supplier_router)
+app.include_router(safety_router)
+app.include_router(stock_count_router)
+app.include_router(inspection_router)
+app.include_router(billing_router)
+app.include_router(visitor_router)
+app.include_router(partner_router)
+app.include_router(station_router)
+app.include_router(expenditure_router)
+app.include_router(discrepancy_router)
 
 
 @app.get("/")

@@ -38,6 +38,8 @@ class TransactionResponse(BaseModel):
     id: str
     transaction_id: str
     customer_id: Optional[str]
+    customer_name: Optional[str] = None
+    customer_tin: Optional[str] = None
     fuel_type: str
     quantity_liters: float
     price_per_liter: float
@@ -166,7 +168,9 @@ async def create_transaction(request: CreateTransactionRequest, user_id: str = "
         attendant_id=transaction.attendant_id,
         status=transaction.status.value,
         created_at=transaction.created_at,
-        receipt_number=transaction.receipt_number
+        receipt_number=transaction.receipt_number,
+        customer_name=customer.name if customer else "Walk-in",
+        customer_tin=customer.tin_number if customer else request.tin_number
     )
 
 
@@ -181,11 +185,22 @@ async def get_transactions(skip: int = 0, limit: int = 100, fuel_type: Optional[
     # Use string-based sorting for better stability across Beanie versions
     transactions = await Transaction.find(query).skip(skip).limit(limit).sort("-created_at").to_list()
 
-    return [
-        TransactionResponse(
+    res = []
+    for tx in transactions:
+        cust_name = "Walk-in"
+        cust_tin = tx.tin_number
+        if tx.customer_id:
+            cust = await Customer.find_one(Customer.customer_id == tx.customer_id)
+            if cust:
+                cust_name = cust.name
+                cust_tin = cust.tin_number or tx.tin_number
+
+        res.append(TransactionResponse(
             id=str(tx.id),
             transaction_id=tx.transaction_id,
             customer_id=tx.customer_id,
+            customer_name=cust_name,
+            customer_tin=cust_tin,
             fuel_type=tx.fuel_type.value,
             quantity_liters=tx.quantity_liters,
             price_per_liter=tx.price_per_liter,
@@ -197,9 +212,8 @@ async def get_transactions(skip: int = 0, limit: int = 100, fuel_type: Optional[
             status=tx.status.value,
             created_at=tx.created_at,
             receipt_number=tx.receipt_number
-        )
-        for tx in transactions
-    ]
+        ))
+    return res
 
 
 @router.get("/transactions/{transaction_id}", response_model=TransactionResponse)
@@ -213,10 +227,14 @@ async def get_transaction(transaction_id: str):
             detail="Transaction not found"
         )
 
+    customer = await Customer.find_one(Customer.customer_id == transaction.customer_id) if transaction.customer_id else None
+
     return TransactionResponse(
         id=str(transaction.id),
         transaction_id=transaction.transaction_id,
         customer_id=transaction.customer_id,
+        customer_name=customer.name if customer else "Walk-in",
+        customer_tin=customer.tin_number if customer else transaction.tin_number,
         fuel_type=transaction.fuel_type.value,
         quantity_liters=transaction.quantity_liters,
         price_per_liter=transaction.price_per_liter,

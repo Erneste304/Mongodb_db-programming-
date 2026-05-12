@@ -12,6 +12,12 @@ class AccountantDashboardState(State):
     my_requests: list[dict] = []
     selected_tab: str = "overview"
     
+    # Additional state for missing features
+    mobile_money_transactions: list[dict] = []
+    profit_margins: list[dict] = []
+    daily_reconciliation: dict = {}
+    fuel_costs: list[dict] = []
+    
     def set_selected_tab(self, tab: str):
         self.selected_tab = tab
     
@@ -35,6 +41,38 @@ class AccountantDashboardState(State):
             self.daily_sales = 3450000
             self.pending_payments = 2500000
             self.petty_cash_balance = 45000
+    
+    async def load_mobile_money_transactions(self):
+        """Load mobile money transactions"""
+        try:
+            transactions = api_client.get("/finance/mobile-money")
+            self.mobile_money_transactions = transactions
+        except Exception as e:
+            self.mobile_money_transactions = []
+    
+    async def load_profit_margins(self):
+        """Load profit margins per fuel type"""
+        try:
+            margins = api_client.get("/accounting/profit-margins")
+            self.profit_margins = margins
+        except Exception as e:
+            self.profit_margins = []
+    
+    async def load_daily_reconciliation(self):
+        """Load daily cash reconciliation data"""
+        try:
+            reconciliation = api_client.get("/finance/daily-reconciliation")
+            self.daily_reconciliation = reconciliation
+        except Exception as e:
+            self.daily_reconciliation = {}
+    
+    async def load_fuel_costs(self):
+        """Load fuel purchase costs vs selling prices"""
+        try:
+            costs = api_client.get("/accounting/fuel-costs")
+            self.fuel_costs = costs
+        except Exception as e:
+            self.fuel_costs = []
     
     async def load_my_requests(self):
         """Load accountant's approval requests"""
@@ -66,6 +104,10 @@ class AccountantDashboardState(State):
         """Load data when component mounts"""
         self.load_financial_summary()
         self.load_my_requests()
+        self.load_mobile_money_transactions()
+        self.load_profit_margins()
+        self.load_daily_reconciliation()
+        self.load_fuel_costs()
 
 
 def accountant_dashboard_page() -> rx.Component:
@@ -126,6 +168,9 @@ def accountant_dashboard_page() -> rx.Component:
                     rx.tabs.trigger("Financial Overview", value="overview"),
                     rx.tabs.trigger("Payments", value="payments"),
                     rx.tabs.trigger("Cash Reconciliation", value="reconciliation"),
+                    rx.tabs.trigger("Mobile Money", value="mobile_money"),
+                    rx.tabs.trigger("Profit Margins", value="margins"),
+                    rx.tabs.trigger("Fuel Costs", value="fuel_costs"),
                     rx.tabs.trigger("My Requests", value="requests"),
                 ),
                 rx.tabs.content(
@@ -187,10 +232,157 @@ def accountant_dashboard_page() -> rx.Component:
                         ),
                         rx.text("Daily cash reconciliation and bank deposits"),
                         rx.divider(),
-                        rx.text("Reconciliation records will be displayed here"),
+                        rx.card(
+                            rx.vstack(
+                                rx.heading("Today's Reconciliation", size="3"),
+                                rx.hstack(
+                                    rx.text("Cash:", font_weight="bold"),
+                                    rx.text(f"{AccountantDashboardState.daily_reconciliation.get('cash', 0):,.0f} RWF"),
+                                    justify="between",
+                                    width="100%"
+                                ),
+                                rx.hstack(
+                                    rx.text("Credit Cards:", font_weight="bold"),
+                                    rx.text(f"{AccountantDashboardState.daily_reconciliation.get('credit_cards', 0):,.0f} RWF"),
+                                    justify="between",
+                                    width="100%"
+                                ),
+                                rx.hstack(
+                                    rx.text("Mobile Money:", font_weight="bold"),
+                                    rx.text(f"{AccountantDashboardState.daily_reconciliation.get('mobile_money', 0):,.0f} RWF"),
+                                    justify="between",
+                                    width="100%"
+                                ),
+                                rx.hstack(
+                                    rx.text("Total:", font_weight="bold"),
+                                    rx.text(f"{AccountantDashboardState.daily_reconciliation.get('total', 0):,.0f} RWF"),
+                                    justify="between",
+                                    width="100%"
+                                ),
+                                width="100%",
+                                spacing="2"
+                            )
+                        ),
                         width="100%"
                     ),
                     value="reconciliation"
+                ),
+                rx.tabs.content(
+                    # Mobile Money Tab
+                    rx.vstack(
+                        rx.heading("Mobile Money Transactions", size="4"),
+                        rx.hstack(
+                            rx.button("Record Transaction", color_scheme="blue"),
+                            rx.button("View All", variant="outline"),
+                            spacing="2"
+                        ),
+                        rx.text("MTN Momo and Airtel Money transactions"),
+                        rx.divider(),
+                        rx.table.root(
+                            rx.table.header(
+                                rx.table.row(
+                                    rx.table.column_header_cell("Transaction ID"),
+                                    rx.table.column_header_cell("Provider"),
+                                    rx.table.column_header_cell("Phone"),
+                                    rx.table.column_header_cell("Amount"),
+                                    rx.table.column_header_cell("Status"),
+                                )
+                            ),
+                            rx.table.body(
+                                rx.foreach(
+                                    AccountantDashboardState.mobile_money_transactions,
+                                    lambda tx: rx.table.row(
+                                        rx.table.cell(tx.get("transaction_id", "")),
+                                        rx.table.cell(tx.get("provider", "")),
+                                        rx.table.cell(tx.get("phone", "")),
+                                        rx.table.cell(f"{tx.get('amount', 0):,.0f} RWF"),
+                                        rx.table.cell(
+                                            rx.badge(
+                                                tx.get("status", ""),
+                                                color_scheme=rx.cond(tx.get("status") == "completed", "green", "yellow")
+                                            )
+                                        ),
+                                    )
+                                )
+                            ),
+                            width="100%"
+                        ),
+                        width="100%"
+                    ),
+                    value="mobile_money"
+                ),
+                rx.tabs.content(
+                    # Profit Margins Tab
+                    rx.vstack(
+                        rx.heading("Profit Margins per Fuel Type", size="4"),
+                        rx.text("Monitor profit margins by fuel type"),
+                        rx.divider(),
+                        rx.table.root(
+                            rx.table.header(
+                                rx.table.row(
+                                    rx.table.column_header_cell("Fuel Type"),
+                                    rx.table.column_header_cell("Purchase Cost"),
+                                    rx.table.column_header_cell("Selling Price"),
+                                    rx.table.column_header_cell("Margin"),
+                                    rx.table.column_header_cell("Margin %"),
+                                )
+                            ),
+                            rx.table.body(
+                                rx.foreach(
+                                    AccountantDashboardState.profit_margins,
+                                    lambda margin: rx.table.row(
+                                        rx.table.cell(margin.get("fuel_type", "")),
+                                        rx.table.cell(f"{margin.get('purchase_cost', 0):,.0f} RWF/L"),
+                                        rx.table.cell(f"{margin.get('selling_price', 0):,.0f} RWF/L"),
+                                        rx.table.cell(f"{margin.get('margin', 0):,.0f} RWF/L"),
+                                        rx.table.cell(
+                                            rx.badge(
+                                                f"{margin.get('margin_percentage', 0):.1f}%",
+                                                color_scheme=rx.cond(margin.get('margin_percentage', 0) > 10, "green", "orange")
+                                            )
+                                        ),
+                                    )
+                                )
+                            ),
+                            width="100%"
+                        ),
+                        width="100%"
+                    ),
+                    value="margins"
+                ),
+                rx.tabs.content(
+                    # Fuel Costs Tab
+                    rx.vstack(
+                        rx.heading("Fuel Purchase Costs vs Selling Prices", size="4"),
+                        rx.text("Track fuel costs and pricing"),
+                        rx.divider(),
+                        rx.table.root(
+                            rx.table.header(
+                                rx.table.row(
+                                    rx.table.column_header_cell("Fuel Type"),
+                                    rx.table.column_header_cell("Purchase Cost (RWF/L)"),
+                                    rx.table.column_header_cell("Selling Price (RWF/L)"),
+                                    rx.table.column_header_cell("Supplier"),
+                                    rx.table.column_header_cell("Last Updated"),
+                                )
+                            ),
+                            rx.table.body(
+                                rx.foreach(
+                                    AccountantDashboardState.fuel_costs,
+                                    lambda cost: rx.table.row(
+                                        rx.table.cell(cost.get("fuel_type", "")),
+                                        rx.table.cell(f"{cost.get('purchase_cost', 0):,.0f}"),
+                                        rx.table.cell(f"{cost.get('selling_price', 0):,.0f}"),
+                                        rx.table.cell(cost.get("supplier", "")),
+                                        rx.table.cell(cost.get("last_updated", "")),
+                                    )
+                                )
+                            ),
+                            width="100%"
+                        ),
+                        width="100%"
+                    ),
+                    value="fuel_costs"
                 ),
                 rx.tabs.content(
                     # My Requests Tab

@@ -19,6 +19,13 @@ class CreateVisitorLogRequest(BaseModel):
     escort_required: bool = False
     escorted_by: Optional[str] = None
     safety_briefing_completed: bool = False
+    safety_briefing_completed_by: Optional[str] = None
+    delivery_document_verified: bool = False
+    delivery_document_type: Optional[str] = None
+    delivery_document_number: Optional[str] = None
+    delivery_document_verified_by: Optional[str] = None
+    vehicle_registration: Optional[str] = None
+    vehicle_type: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -29,8 +36,21 @@ class VisitorLogResponse(BaseModel):
     visitor_phone: str
     visitor_type: str
     purpose: str
+    id_number: Optional[str]
     check_in_time: datetime
     check_out_time: Optional[datetime]
+    escort_required: bool
+    escorted_by: Optional[str]
+    safety_briefing_completed: bool
+    safety_briefing_completed_by: Optional[str]
+    safety_briefing_completed_at: Optional[datetime]
+    delivery_document_verified: bool
+    delivery_document_type: Optional[str]
+    delivery_document_number: Optional[str]
+    delivery_document_verified_by: Optional[str]
+    delivery_document_verified_at: Optional[datetime]
+    vehicle_registration: Optional[str]
+    vehicle_type: Optional[str]
     status: str
 
 
@@ -41,6 +61,15 @@ async def sign_in_visitor(
 ):
     """Sign in a new visitor"""
     log = VisitorLog(**request.dict())
+    
+    # Set safety briefing timestamp if completed
+    if request.safety_briefing_completed:
+        log.safety_briefing_completed_at = datetime.utcnow()
+    
+    # Set document verification timestamp if verified
+    if request.delivery_document_verified:
+        log.delivery_document_verified_at = datetime.utcnow()
+    
     await log.insert()
     
     return VisitorLogResponse(
@@ -50,8 +79,21 @@ async def sign_in_visitor(
         visitor_phone=log.visitor_phone,
         visitor_type=log.visitor_type.value,
         purpose=log.purpose.value,
+        id_number=log.id_number,
         check_in_time=log.check_in_time,
         check_out_time=log.check_out_time,
+        escort_required=log.escort_required,
+        escorted_by=log.escorted_by,
+        safety_briefing_completed=log.safety_briefing_completed,
+        safety_briefing_completed_by=log.safety_briefing_completed_by,
+        safety_briefing_completed_at=log.safety_briefing_completed_at,
+        delivery_document_verified=log.delivery_document_verified,
+        delivery_document_type=log.delivery_document_type,
+        delivery_document_number=log.delivery_document_number,
+        delivery_document_verified_by=log.delivery_document_verified_by,
+        delivery_document_verified_at=log.delivery_document_verified_at,
+        vehicle_registration=log.vehicle_registration,
+        vehicle_type=log.vehicle_type,
         status=log.status
     )
 
@@ -92,8 +134,21 @@ async def get_visitor_logs(
             visitor_phone=log.visitor_phone,
             visitor_type=log.visitor_type.value,
             purpose=log.purpose.value,
+            id_number=log.id_number,
             check_in_time=log.check_in_time,
             check_out_time=log.check_out_time,
+            escort_required=log.escort_required,
+            escorted_by=log.escorted_by,
+            safety_briefing_completed=log.safety_briefing_completed,
+            safety_briefing_completed_by=log.safety_briefing_completed_by,
+            safety_briefing_completed_at=log.safety_briefing_completed_at,
+            delivery_document_verified=log.delivery_document_verified,
+            delivery_document_type=log.delivery_document_type,
+            delivery_document_number=log.delivery_document_number,
+            delivery_document_verified_by=log.delivery_document_verified_by,
+            delivery_document_verified_at=log.delivery_document_verified_at,
+            vehicle_registration=log.vehicle_registration,
+            vehicle_type=log.vehicle_type,
             status=log.status
         )
         for log in logs

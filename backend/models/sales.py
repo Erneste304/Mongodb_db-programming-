@@ -70,6 +70,18 @@ class Customer(Document):
     credit_limit: Optional[float] = Field(default=0)
     current_balance: float = Field(default=0)
     loyalty_points: int = Field(default=0)
+    
+    # Corporate account details (for credit customers)
+    company_name: Optional[str] = Field(None)
+    company_address: Optional[str] = Field(None)
+    billing_contact: Optional[str] = Field(None)
+    billing_email: Optional[str] = Field(None)
+    billing_phone: Optional[str] = Field(None)
+    payment_terms: str = Field(default="Net 30", description="Payment terms for credit customers")
+    
+    # Vehicle registration (for corporate accounts)
+    registered_vehicles: List[str] = Field(default_factory=list, description="Vehicle registration numbers")
+    
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
