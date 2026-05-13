@@ -52,68 +52,149 @@ def dashboard_page():
         else:
             role = str(role_data)
 
+        # Normalize role for comparison
+        role = role.lower()
+
         ui.label(f'{role.capitalize()} Dashboard').classes(
             'text-2xl font-bold mb-6')
 
         with ui.grid(columns=4).classes('w-full gap-4'):
             # Dashboard cards based on role
             if role == 'superadmin':
-                with ui.card().classes('p-4 bg-blue-500 text-white'):
+                card_users = ui.card().classes('p-4 bg-blue-500 text-white cursor-pointer')
+                card_users.on('click', lambda: ui.navigate.to('/users'))
+                with card_users:
                     ui.label('Total Users').classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-green-500 text-white'):
+                card_perm = ui.card().classes('p-4 bg-green-500 text-white cursor-pointer')
+                card_perm.on('click', lambda: ui.navigate.to('/permissions'))
+                with card_perm:
                     ui.label('Active Roles').classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-purple-500 text-white'):
+                card_set = ui.card().classes('p-4 bg-purple-500 text-white cursor-pointer')
+                card_set.on('click', lambda: ui.navigate.to('/settings'))
+                with card_set:
                     ui.label('System Status').classes('text-sm')
                     ui.label('Active').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-orange-500 text-white'):
+                card_audit = ui.card().classes('p-4 bg-orange-500 text-white cursor-pointer')
+                card_audit.on('click', lambda: ui.navigate.to('/audit'))
+                with card_audit:
                     ui.label('Pending Approvals').classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
             elif role == 'admin':
-                with ui.card().classes('p-4 bg-blue-500 text-white'):
+                card_att = ui.card().classes('p-4 bg-blue-500 text-white cursor-pointer')
+                card_att.on('click', lambda: ui.navigate.to('/attendance'))
+                with card_att:
                     ui.label('Staff on Duty').classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-green-500 text-white'):
+                card_ops = ui.card().classes('p-4 bg-green-500 text-white cursor-pointer')
+                card_ops.on('click', lambda: ui.navigate.to('/operations'))
+                with card_ops:
                     ui.label('Today\'s Sales').classes('text-sm')
                     ui.label('RWF 0').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-purple-500 text-white'):
+                card_inv = ui.card().classes('p-4 bg-purple-500 text-white cursor-pointer')
+                card_inv.on('click', lambda: ui.navigate.to('/inventory'))
+                with card_inv:
                     ui.label('Fuel Levels').classes('text-sm')
                     ui.label('0%').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-orange-500 text-white'):
+                card_comp = ui.card().classes('p-4 bg-orange-500 text-white cursor-pointer')
+                card_comp.on('click', lambda: ui.navigate.to('/complaints'))
+                with card_comp:
                     ui.label('Pending Tasks').classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
             elif role == 'accountant':
-                with ui.card().classes('p-4 bg-blue-500 text-white'):
+                card_rev = ui.card().classes('p-4 bg-blue-500 text-white cursor-pointer')
+                card_rev.on('click', lambda: ui.navigate.to('/receivable'))
+                with card_rev:
                     ui.label('Today\'s Revenue').classes('text-sm')
                     ui.label('RWF 0').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-green-500 text-white'):
+                card_pay = ui.card().classes('p-4 bg-green-500 text-white cursor-pointer')
+                card_pay.on('click', lambda: ui.navigate.to('/payable'))
+                with card_pay:
                     ui.label('Pending Invoices').classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-purple-500 text-white'):
+                card_cash = ui.card().classes('p-4 bg-purple-500 text-white cursor-pointer')
+                card_cash.on('click', lambda: ui.navigate.to('/closing'))
+                with card_cash:
                     ui.label('Cash on Hand').classes('text-sm')
                     ui.label('RWF 0').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-orange-500 text-white'):
+                card_recon = ui.card().classes('p-4 bg-orange-500 text-white cursor-pointer')
+                card_recon.on(
+                    'click', lambda: ui.navigate.to('/reconciliation'))
+                with card_recon:
                     ui.label('Unreconciled').classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
-            elif role == 'pump_attendant':
-                with ui.card().classes('p-4 bg-blue-500 text-white'):
+            elif role == 'receptionist':
+                card_sales = ui.card().classes('p-4 bg-blue-500 text-white cursor-pointer')
+                card_sales.on('click', lambda: ui.navigate.to('/sales'))
+                with card_sales:
+                    ui.label('Sales Command Center').classes('text-sm')
+                    ui.label('🛒').classes('text-3xl font-bold')
+                    ui.label('Process Transactions').classes(
+                        'text-xs opacity-80')
+
+                card_cust = ui.card().classes('p-4 bg-green-500 text-white cursor-pointer')
+                card_cust.on('click', lambda: ui.navigate.to('/customers'))
+                with card_cust:
+                    ui.label('Customer Management').classes('text-sm')
+                    ui.label('👥').classes('text-3xl font-bold')
+                    ui.label('Loyalty & Credit').classes('text-xs opacity-80')
+
+            elif role == 'inventory_manager':
+                card_inv = ui.card().classes('p-4 bg-blue-500 text-white cursor-pointer')
+                card_inv.on('click', lambda: ui.navigate.to('/inventory'))
+                with card_inv:
+                    ui.label('Inventory Tracking').classes('text-sm')
+                    ui.label('📦').classes('text-3xl font-bold')
+
+                card_del = ui.card().classes('p-4 bg-green-500 text-white cursor-pointer')
+                card_del.on('click', lambda: ui.navigate.to('/inventory'))
+                with card_del:
+                    ui.label('Fuel Deliveries').classes('text-sm')
+                    ui.label('🚚').classes('text-3xl font-bold')
+
+                card_cal = ui.card().classes('p-4 bg-purple-500 text-white cursor-pointer')
+                card_cal.on('click', lambda: ui.navigate.to('/calibration'))
+                with card_cal:
+                    ui.label('Tank Calibration').classes('text-sm')
+                    ui.label('🔧').classes('text-3xl font-bold')
+
+            elif role in ['staff', 'pump_attendant']:
+                card_sched = ui.card().classes('p-4 bg-blue-500 text-white cursor-pointer')
+                card_sched.on('click', lambda: ui.navigate.to('/schedules'))
+                with card_sched:
+                    ui.row().classes('items-center gap-2')
+                    ui.icon('calendar_month')
+                    ui.label('My Schedule').classes('text-sm')
+                    ui.label('View Shift').classes('text-xs opacity-70')
+
+                card_my_att = ui.card().classes('p-4 bg-green-500 text-white cursor-pointer')
+                card_my_att.on('click', lambda: ui.navigate.to('/attendance'))
+                with card_my_att:
+                    ui.row().classes('items-center gap-2')
+                    ui.icon('timer')
+                    ui.label('My Attendance').classes('text-sm')
+                    ui.label('Clock In/Out').classes('text-xs opacity-70')
+
+                card_tx = ui.card().classes('p-4 bg-purple-500 text-white cursor-pointer')
+                card_tx.on('click', lambda: ui.navigate.to('/sales'))
+                with card_tx:
                     ui.label("Today's Transactions").classes('text-sm')
                     ui.label('0').classes('text-3xl font-bold')
 
-                with ui.card().classes('p-4 bg-green-500 text-white'):
+                with ui.card().classes('p-4 bg-orange-500 text-white cursor-pointer'):
                     ui.label('Active Pumps').classes('text-sm')
                     ui.label('4').classes('text-3xl font-bold')
 
@@ -378,6 +459,16 @@ def sales_dashboard():
     else:
         receptionist.receptionist_page()
 
+
+@ui.page('/customers')
+def customers_page():
+    """Customer management route"""
+    if not app.storage.user.get('authenticated', False):
+        ui.navigate.to('/login')
+    else:
+        # Assumes receptionist module has a customers_page function
+        receptionist.customers_page()
+
 # Initialize NiceGUI app
 
 
@@ -401,7 +492,11 @@ def create_nicegui_app(fastapi_app_instance: FastAPI):
         from backend.models.audit_log import AuditLog
         from backend.models.system_settings import SystemSettings
         from backend.models.approval_request import ApprovalRequest
-        from backend.models.accounting import DailyClosing, CommissionCalculation
+        from backend.models.accounting import (
+            DailyClosing, CommissionCalculation, BankReconciliation,
+            AccountsReceivable, AccountsPayable, TaxRecord,
+            FuelCostTracking, CorporateInvoice, RURAComplianceReport
+        )
         from backend.models.inventory import Tank, FuelDelivery, InventoryRecord
 
         # List of models to initialize with Beanie
@@ -431,6 +526,13 @@ def create_nicegui_app(fastapi_app_instance: FastAPI):
             ApprovalRequest,
             DailyClosing,
             CommissionCalculation,
+            BankReconciliation,
+            AccountsReceivable,
+            AccountsPayable,
+            TaxRecord,
+            FuelCostTracking,
+            CorporateInvoice,
+            RURAComplianceReport,
             Tank,
             FuelDelivery,
             InventoryRecord
@@ -462,9 +564,10 @@ def create_nicegui_app(fastapi_app_instance: FastAPI):
             'superadmin': ['/users', '/permissions', '/pricing', '/partners', '/settings', '/audit', '/dashboard'],
             'admin': ['/schedules', '/attendance', '/timesheets', '/operations', '/safety', '/calibration', '/deliveries', '/complaints', '/dashboard'],
             'accountant': ['/reconciliation', '/receivable', '/payable', '/tax', '/costs', '/commissions', '/closing', '/compliance', '/dashboard'],
-            'inventory': ['/inventory', '/dashboard'],
-            'receptionist': ['/sales', '/dashboard'],
-            'pump_attendant': ['/dashboard']
+            'inventory_manager': ['/inventory', '/calibration', '/dashboard'],
+            'receptionist': ['/sales', '/customers', '/dashboard'],
+            'pump_attendant': ['/sales', '/attendance', '/dashboard'],
+            'staff': ['/schedules', '/attendance', '/dashboard']
         }
 
         # Superadmins can access everything

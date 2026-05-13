@@ -235,7 +235,12 @@ def attendance_page():
                 p.cancel()
                 table.props(remove='loading')
                 if res['err']:
-                    ui.notify(f"Load error: {res['err']}", type='negative')
+                    if "Signature has expired" in res['err']:
+                        ui.notify("Session expired. Please log in again.", type='warning')
+                        auth_state.logout()
+                        ui.navigate.to('/login')
+                    else:
+                        ui.notify(f"Load error: {res['err']}", type='negative')
                 else:
                     table.rows = res['rows']
 

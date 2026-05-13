@@ -50,13 +50,13 @@ async def create_bank_reconciliation(
     current_user: User = Depends(require_role_level(3))  # Accountant+
 ):
     """Create bank reconciliation record - Accountant only"""
-    
+
     difference = request.statement_balance - request.system_balance
-    
+
     status = BankReconciliationStatus.RECONCILED
     if abs(difference) > 0.01:
         status = BankReconciliationStatus.DISCREPANCY
-    
+
     reconciliation = BankReconciliation(
         reconciliation_id=f"BR-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
         bank_account_id=request.bank_account_id,
@@ -74,12 +74,13 @@ async def create_bank_reconciliation(
         mobile_money_number=request.mobile_money_number,
         status=status,
         discrepancy_notes=request.discrepancy_notes,
-        reconciled_by=str(current_user.id) if status == BankReconciliationStatus.RECONCILED else None,
+        reconciled_by=str(
+            current_user.id) if status == BankReconciliationStatus.RECONCILED else None,
         reconciled_at=datetime.utcnow() if status == BankReconciliationStatus.RECONCILED else None
     )
-    
+
     await reconciliation.insert()
-    
+
     await AuditLogService.log_action(
         user=current_user,
         action="created_bank_reconciliation",
@@ -92,7 +93,7 @@ async def create_bank_reconciliation(
             "status": status.value
         }
     )
-    
+
     return {
         "message": "Bank reconciliation created",
         "reconciliation_id": reconciliation.reconciliation_id,
@@ -108,15 +109,15 @@ async def get_bank_reconciliations(
     current_user: User = Depends(require_role_level(3))
 ):
     """Get bank reconciliations - Accountant view"""
-    
+
     query = {}
     if account_id:
         query["bank_account_id"] = account_id
     if status:
         query["status"] = status.value
-    
+
     reconciliations = await BankReconciliation.find(query).to_list()
-    
+
     return [
         {
             "reconciliation_id": r.reconciliation_id,
@@ -154,9 +155,9 @@ async def create_corporate_invoice(
     current_user: User = Depends(require_role_level(3))
 ):
     """Create invoice for corporate customer - Accountant only"""
-    
+
     total_amount = request.subtotal + request.vat_amount
-    
+
     # Create AR record
     ar = AccountsReceivable(
         ar_id=f"AR-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
@@ -176,9 +177,9 @@ async def create_corporate_invoice(
         created_by=str(current_user.id),
         notes=request.notes
     )
-    
+
     await ar.insert()
-    
+
     # Also create CorporateInvoice for detailed billing
     invoice = CorporateInvoice(
         invoice_id=ar.ar_id,
@@ -198,9 +199,9 @@ async def create_corporate_invoice(
         prepared_by=str(current_user.id),
         notes=request.notes
     )
-    
+
     await invoice.insert()
-    
+
     await AuditLogService.log_action(
         user=current_user,
         action="created_corporate_invoice",
@@ -213,7 +214,7 @@ async def create_corporate_invoice(
             "amount": total_amount
         }
     )
-    
+
     return {
         "message": "Corporate invoice created",
         "ar_id": ar.ar_id,
@@ -230,15 +231,15 @@ async def get_accounts_receivable(
     current_user: User = Depends(require_role_level(3))
 ):
     """Get accounts receivable - Accountant view"""
-    
+
     query = {}
     if status:
         query["status"] = status.value
     if customer_id:
         query["customer_id"] = customer_id
-    
+
     ar_records = await AccountsReceivable.find(query).to_list()
-    
+
     return [
         {
             "ar_id": ar.ar_id,
@@ -264,32 +265,33 @@ async def record_ar_payment(
     current_user: User = Depends(require_role_level(3))
 ):
     """Record payment against accounts receivable - Accountant only"""
-    
+
     ar = await AccountsReceivable.find_one({"ar_id": ar_id})
     if not ar:
         raise HTTPException(status_code=404, detail="AR record not found")
-    
+
     ar.amount_paid += amount
     ar.balance_due = ar.total_amount - ar.amount_paid
     ar.last_payment_date = datetime.utcnow()
     ar.last_payment_amount = amount
-    
+
     if ar.balance_due <= 0:
         ar.status = CreditStatus.PAID
     elif datetime.utcnow() > ar.due_date:
         ar.status = CreditStatus.OVERDUE
-    
+
     await ar.save()
-    
+
     await AuditLogService.log_action(
         user=current_user,
         action="recorded_ar_payment",
         resource_type="accounts_receivable",
         resource_id=str(ar.id),
         old_value={"balance_due": ar.balance_due + amount},
-        new_value={"balance_due": ar.balance_due, "amount_paid": ar.amount_paid}
+        new_value={"balance_due": ar.balance_due,
+                   "amount_paid": ar.amount_paid}
     )
-    
+
     return {
         "message": "Payment recorded",
         "ar_id": ar_id,
@@ -308,15 +310,15 @@ async def get_accounts_payable(
     current_user: User = Depends(require_role_level(3))
 ):
     """Get accounts payable - Accountant view"""
-    
+
     query = {}
     if status:
         query["status"] = status.value
     if supplier_id:
         query["supplier_id"] = supplier_id
-    
+
     ap_records = await AccountsPayable.find(query).to_list()
-    
+
     return [
         {
             "ap_id": ap.ap_id,
@@ -343,30 +345,32 @@ async def record_ap_payment(
     current_user: User = Depends(require_role_level(3))
 ):
     """Record payment to supplier - Accountant only"""
-    
+
     ap = await AccountsPayable.find_one({"ap_id": ap_id})
     if not ap:
-        raise HTTPException(status_code=404, detail="AP record not found")
-    
+        raise HTTPException(
+            status_code=404, detail=f"Supplier payment record (AP) with ID '{ap_id}' not found.")
+
     ap.amount_paid += amount
     ap.balance_due = ap.total_amount - ap.amount_paid
     ap.last_payment_date = datetime.utcnow()
     ap.last_payment_amount = amount
-    
+
     if ap.balance_due <= 0:
         ap.status = CreditStatus.PAID
-    
+
     await ap.save()
-    
+
     await AuditLogService.log_action(
         user=current_user,
         action="recorded_supplier_payment",
         resource_type="accounts_payable",
         resource_id=str(ap.id),
         old_value={"balance_due": ap.balance_due + amount},
-        new_value={"balance_due": ap.balance_due, "amount_paid": ap.amount_paid}
+        new_value={"balance_due": ap.balance_due,
+                   "amount_paid": ap.amount_paid}
     )
-    
+
     return {
         "message": "Supplier payment recorded",
         "ap_id": ap_id,
@@ -394,9 +398,9 @@ async def create_tax_record(
     current_user: User = Depends(require_role_level(3))
 ):
     """Create tax record (VAT, Income Tax) - Accountant only"""
-    
+
     tax_amount = request.taxable_amount * (request.tax_rate / 100)
-    
+
     tax_record = TaxRecord(
         tax_id=f"TAX-{request.tax_type.value.upper()}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
         tax_type=request.tax_type,
@@ -411,9 +415,9 @@ async def create_tax_record(
         status="filed",
         notes=request.notes
     )
-    
+
     await tax_record.insert()
-    
+
     await AuditLogService.log_action(
         user=current_user,
         action="filed_tax_return",
@@ -426,7 +430,7 @@ async def create_tax_record(
             "period": f"{request.period_start.date()} to {request.period_end.date()}"
         }
     )
-    
+
     return {
         "message": "Tax record created",
         "tax_id": tax_record.tax_id,
@@ -442,15 +446,15 @@ async def get_tax_records(
     current_user: User = Depends(require_role_level(3))
 ):
     """Get tax records - Accountant view"""
-    
+
     query = {}
     if tax_type:
         query["tax_type"] = tax_type.value
     if status:
         query["status"] = status
-    
+
     tax_records = await TaxRecord.find(query).to_list()
-    
+
     return [
         {
             "tax_id": t.tax_id,
@@ -489,14 +493,16 @@ async def create_fuel_cost_tracking(
     current_user: User = Depends(require_role_level(3))
 ):
     """Track fuel costs and calculate profit margins - Accountant only"""
-    
+
     total_purchase_cost = request.quantity_liters * request.purchase_price_per_liter
-    total_additional_costs = request.transport_cost + request.storage_cost + request.other_costs
-    total_cost_per_liter = (total_purchase_cost + total_additional_costs) / request.quantity_liters
-    
+    total_additional_costs = request.transport_cost + \
+        request.storage_cost + request.other_costs
+    total_cost_per_liter = (total_purchase_cost +
+                            total_additional_costs) / request.quantity_liters
+
     profit_per_liter = request.selling_price_per_liter - total_cost_per_liter
     profit_margin_percentage = (profit_per_liter / total_cost_per_liter) * 100
-    
+
     tracking = FuelCostTracking(
         tracking_id=f"FCT-{request.fuel_type}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
         fuel_type=request.fuel_type,
@@ -518,9 +524,9 @@ async def create_fuel_cost_tracking(
         period_end=request.period_end,
         created_by=str(current_user.id)
     )
-    
+
     await tracking.insert()
-    
+
     return {
         "message": "Fuel cost tracking created",
         "tracking_id": tracking.tracking_id,
@@ -537,13 +543,13 @@ async def get_fuel_cost_tracking(
     current_user: User = Depends(require_role_level(3))
 ):
     """Get fuel cost tracking with profit margins - Accountant view"""
-    
+
     query = {}
     if fuel_type:
         query["fuel_type"] = fuel_type
-    
+
     tracking_records = await FuelCostTracking.find(query).to_list()
-    
+
     return [
         {
             "tracking_id": t.tracking_id,
@@ -583,10 +589,11 @@ async def calculate_commission(
     current_user: User = Depends(require_role_level(3))
 ):
     """Calculate staff commission - Accountant only"""
-    
-    commission_amount = request.total_sales_amount * (request.commission_rate / 100)
+
+    commission_amount = request.total_sales_amount * \
+        (request.commission_rate / 100)
     total_commission = commission_amount + request.bonus_amount - request.deductions
-    
+
     commission = CommissionCalculation(
         commission_id=f"COMM-{request.user_id}-{datetime.utcnow().strftime('%Y%m%d')}",
         user_id=request.user_id,
@@ -604,9 +611,9 @@ async def calculate_commission(
         total_commission=total_commission,
         calculated_by=str(current_user.id)
     )
-    
+
     await commission.insert()
-    
+
     return {
         "message": "Commission calculated",
         "commission_id": commission.commission_id,
@@ -621,9 +628,9 @@ async def get_pending_commissions(
     current_user: User = Depends(require_role_level(3))
 ):
     """Get pending commission approvals - Accountant view"""
-    
+
     commissions = await CommissionCalculation.find({"status": "calculated"}).to_list()
-    
+
     return [
         {
             "commission_id": c.commission_id,
@@ -644,17 +651,18 @@ async def approve_commission(
     current_user: User = Depends(require_role_level(3))
 ):
     """Approve commission calculation - Accountant only"""
-    
+
     commission = await CommissionCalculation.find_one({"commission_id": commission_id})
     if not commission:
-        raise HTTPException(status_code=404, detail="Commission record not found")
-    
+        raise HTTPException(
+            status_code=404, detail="Commission record not found")
+
     commission.status = "approved"
     commission.approved_by = str(current_user.id)
     commission.approved_at = datetime.utcnow()
-    
+
     await commission.save()
-    
+
     return {"message": "Commission approved", "commission_id": commission_id}
 
 
@@ -689,14 +697,14 @@ async def create_daily_closing(
     current_user: User = Depends(require_role_level(3))
 ):
     """Record daily closing with all payment methods - Accountant only"""
-    
-    expected_cash = (request.opening_cash_balance + request.cash_sales - 
-                    request.cash_refunds - request.cash_paid_out)
+
+    expected_cash = (request.opening_cash_balance + request.cash_sales -
+                     request.cash_refunds - request.cash_paid_out)
     cash_variance = request.actual_cash_balance - expected_cash
-    
-    total_sales = (request.cash_sales + request.card_sales + 
+
+    total_sales = (request.cash_sales + request.card_sales +
                    request.mobile_money_sales + request.credit_sales)
-    
+
     closing = DailyClosing(
         closing_id=f"DC-{request.station_id}-{datetime.utcnow().strftime('%Y%m%d')}",
         station_id=request.station_id,
@@ -728,9 +736,9 @@ async def create_daily_closing(
         notes=request.notes,
         discrepancies=request.discrepancies
     )
-    
+
     await closing.insert()
-    
+
     await AuditLogService.log_action(
         user=current_user,
         action="recorded_daily_closing",
@@ -743,7 +751,7 @@ async def create_daily_closing(
             "cash_variance": cash_variance
         }
     )
-    
+
     return {
         "message": "Daily closing recorded",
         "closing_id": closing.closing_id,
@@ -760,15 +768,15 @@ async def get_daily_closings(
     current_user: User = Depends(require_role_level(3))
 ):
     """Get daily closing records - Accountant view"""
-    
+
     query = {}
     if station_id:
         query["station_id"] = station_id
     if start_date and end_date:
         query["closing_date"] = {"$gte": start_date, "$lte": end_date}
-    
+
     closings = await DailyClosing.find(query).to_list()
-    
+
     return [
         {
             "closing_id": c.closing_id,
@@ -813,7 +821,7 @@ async def create_rura_report(
     current_user: User = Depends(require_role_level(3))
 ):
     """Create RURA compliance report - Accountant only"""
-    
+
     report = RURAComplianceReport(
         report_id=f"RURA-{request.report_period}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
         report_period=request.report_period,
@@ -836,9 +844,9 @@ async def create_rura_report(
         submitted_by=str(current_user.id),
         status="submitted"
     )
-    
+
     await report.insert()
-    
+
     await AuditLogService.log_action(
         user=current_user,
         action="submitted_rura_report",
@@ -850,7 +858,7 @@ async def create_rura_report(
             "rura_reference": request.rura_reference
         }
     )
-    
+
     return {
         "message": "RURA compliance report submitted",
         "report_id": report.report_id,
@@ -865,21 +873,21 @@ async def get_rura_reports(
     current_user: User = Depends(require_role_level(3))
 ):
     """Get RURA compliance reports - Accountant view"""
-    
+
     query = {}
     if status:
         query["status"] = status
-    
+
     reports = await RURAComplianceReport.find(query).to_list()
-    
+
     return [
         {
             "report_id": r.report_id,
             "report_period": r.report_period,
-            "total_sales_liters": (r.petrol_sales_liters + r.diesel_sales_liters + 
+            "total_sales_liters": (r.petrol_sales_liters + r.diesel_sales_liters +
                                    r.kerosene_sales_liters),
-            "total_sales_amount": (r.petrol_sales_amount + r.diesel_sales_amount + 
-                                 r.kerosene_sales_amount),
+            "total_sales_amount": (r.petrol_sales_amount + r.diesel_sales_amount +
+                                   r.kerosene_sales_amount),
             "total_vat_collected": r.total_vat_collected,
             "status": r.status,
             "submitted_date": r.submitted_date

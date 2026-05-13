@@ -1,7 +1,9 @@
 from fastapi import FastAPI, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from beanie.exceptions import CollectionWasNotInitialized
 from backend.core.config import settings
 from backend.core.database import db
 from backend.core.exceptions import PermissionDenied, ApprovalRequired, ResourceNotFound
@@ -58,7 +60,11 @@ async def lifespan(app: FastAPI):
     from backend.models.audit_log import AuditLog
     from backend.models.system_settings import SystemSettings
     from backend.models.approval_request import ApprovalRequest
-    from backend.models.accounting import DailyClosing, CommissionCalculation
+    from backend.models.accounting import (
+        DailyClosing, CommissionCalculation, BankReconciliation,
+        AccountsReceivable, AccountsPayable, TaxRecord,
+        FuelCostTracking, CorporateInvoice, RURAComplianceReport
+    )
     from backend.models.inventory import Tank, FuelDelivery, InventoryRecord
 
     models = [
@@ -87,6 +93,13 @@ async def lifespan(app: FastAPI):
         ApprovalRequest,
         DailyClosing,
         CommissionCalculation,
+        BankReconciliation,
+        AccountsReceivable,
+        AccountsPayable,
+        TaxRecord,
+        FuelCostTracking,
+        CorporateInvoice,
+        RURAComplianceReport,
         Tank,
         FuelDelivery,
         InventoryRecord
@@ -112,7 +125,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security Headers Middleware
+# Register error handlers
+app.add_exception_handler(PermissionDenied, permission_denied_handler)
+app.add_exception_handler(ApprovalRequired, approval_required_handler)
+app.add_exception_handler(ResourceNotFound, resource_not_found_handler)
+
+
+@app.exception_handler(CollectionWasNotInitialized)
+async def beanie_not_initialized_handler(request: Request, exc: CollectionWasNotInitialized):
+    """Handle Beanie initialization race conditions during app startup"""
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": "Database initialization in progress. Please wait a few seconds."},
+        headers={"Retry-After": "5"}
+    )
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
+
+# Middleware
 
 
 @app.middleware("http")
@@ -123,14 +154,8 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     return response
 
-# Register error handlers
-app.add_exception_handler(PermissionDenied, permission_denied_handler)
-app.add_exception_handler(ApprovalRequired, approval_required_handler)
-app.add_exception_handler(ResourceNotFound, resource_not_found_handler)
-app.add_exception_handler(RequestValidationError, validation_exception_handler)
-app.add_exception_handler(Exception, generic_exception_handler)
 
-# Include routers
+# Include routers (after handlers are registered)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(approvals_router)

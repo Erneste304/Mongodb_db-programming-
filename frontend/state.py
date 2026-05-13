@@ -87,6 +87,9 @@ def dashboard_layout(content_fn):
                 else:
                     role = str(role_data)
 
+                # Normalize role for comparison
+                role = role.lower()
+
                 if role == 'superadmin':
                     nav_item('Dashboard', '/dashboard', '📊')
                     nav_item('User Management', '/users', '👥')
@@ -123,7 +126,7 @@ def dashboard_layout(content_fn):
                 elif role == 'receptionist':
                     nav_item('Dashboard', '/dashboard', '📊')
                     nav_item('Sales Command Center', '/sales', '🛒')
-                    nav_item('Customers', '/sales', '👥')
+                    nav_item('Customers', '/customers', '👥')
 
                 elif role == 'inventory_manager':
                     nav_item('Dashboard', '/dashboard', '📊')

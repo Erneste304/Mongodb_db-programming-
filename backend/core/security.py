@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
@@ -12,17 +13,18 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> User:
     """Get current user from JWT token"""
-    
+
     def credentials_exception(reason: str = "Could not validate credentials"):
         return HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=reason,
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         token = credentials.credentials
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY,
+                             algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("sub")
         print(f"DEBUG: JWT sub claim (user_id): {user_id}")
         if user_id is None:
@@ -30,25 +32,37 @@ async def get_current_user(
     except JWTError as e:
         print(f"DEBUG: JWT Error: {e}")
         raise credentials_exception(f"JWT Decode Error: {str(e)}")
-    
-    from beanie import PydanticObjectId
-    try:
-        user = await User.get(PydanticObjectId(user_id), fetch_links=True)
-        print(f"DEBUG: User lookup result: {user}")
-    except Exception as e:
-        print(f"DEBUG: Error during User.get with {user_id}: {e}")
-        raise credentials_exception(f"Database Error: {str(e)}")
 
-    if user is None:
-        raise credentials_exception("User not found in database")
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
-        )
-    
-    return user
+    from beanie import PydanticObjectId
+    import asyncio
+
+    # Retry up to 5 times (5 seconds total) to handle startup race condition
+    # where Beanie ODM hasn't finished initializing when the first request arrives.
+    last_error = None
+    for attempt in range(5):
+        try:
+            user = await User.get(PydanticObjectId(user_id), fetch_links=True)
+            if user:
+                print(f"DEBUG: User lookup result: {user}")
+                if not user.is_active:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
+                return user
+            raise credentials_exception("User not found in database")
+        except Exception as e:
+            last_error = e
+            if "CollectionWasNotInitialized" in type(e).__name__ or "CollectionWasNotInitialized" in str(e):
+                print(
+                    f"DEBUG: Beanie not ready yet, retrying in 1s (attempt {attempt + 1}/5)...")
+                await asyncio.sleep(1)
+            else:
+                raise credentials_exception(f"Authentication Error: {str(e)}")
+    else:
+        # All retries exhausted
+        print(
+            f"DEBUG: Beanie still not initialized after 5 retries: {last_error}")
+        raise credentials_exception(
+            "Database not ready. Please refresh in a moment.")
 
 
 async def get_current_active_user(

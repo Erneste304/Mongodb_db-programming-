@@ -100,7 +100,7 @@ async def get_staff_schedule(
 
 @router.get("/schedules/all")
 async def get_all_schedules(
-    current_user: User = Depends(require_role_level(2))
+    current_user: User = Depends(require_role_level(5))
 ):
     """Get all staff schedules - Admin oversight"""
     schedules = await StaffSchedule.find_all().sort("-shift_date").to_list()
@@ -133,7 +133,7 @@ class RecordAttendanceRequest(BaseModel):
 @router.post("/attendance")
 async def record_attendance(
     request: RecordAttendanceRequest,
-    current_user: User = Depends(require_role_level(2))
+    current_user: User = Depends(require_role_level(5))
 ):
     """Record staff attendance - Admin only"""
 
@@ -191,7 +191,7 @@ async def get_attendance(
 
 @router.get("/attendance/all")
 async def get_all_attendance(
-    current_user: User = Depends(require_role_level(2))
+    current_user: User = Depends(require_role_level(5))
 ):
     """Get all attendance records (Admin oversight)"""
     # Use find_all() to retrieve multiple records and sort them
