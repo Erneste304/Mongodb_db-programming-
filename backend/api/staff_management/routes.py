@@ -70,6 +70,27 @@ async def create_schedule(
     return {"message": "Schedule created", "schedule_id": schedule.schedule_id}
 
 
+@router.get("/schedules/all")
+async def get_all_schedules(
+    current_user: User = Depends(require_role_level(5))
+):
+    """Get all staff schedules - Admin oversight"""
+    schedules = await StaffSchedule.find_all().sort("-shift_date").to_list()
+    return [
+        {
+            "schedule_id": s.schedule_id,
+            "employee": s.user_id,
+            "shift_date": s.shift_date.isoformat().split('T')[0],
+            "start_time": s.start_time.isoformat(),
+            "end_time": s.end_time.isoformat(),
+            "role": s.role_during_shift,
+            "status": s.status.value
+        }
+        for s in schedules
+    ]
+
+
+
 @router.get("/schedules/{user_id}")
 async def get_staff_schedule(
     user_id: str,
@@ -89,26 +110,6 @@ async def get_staff_schedule(
         {
             "schedule_id": s.schedule_id,
             "shift_date": s.shift_date,
-            "start_time": s.start_time.isoformat(),
-            "end_time": s.end_time.isoformat(),
-            "role": s.role_during_shift,
-            "status": s.status.value
-        }
-        for s in schedules
-    ]
-
-
-@router.get("/schedules/all")
-async def get_all_schedules(
-    current_user: User = Depends(require_role_level(5))
-):
-    """Get all staff schedules - Admin oversight"""
-    schedules = await StaffSchedule.find_all().sort("-shift_date").to_list()
-    return [
-        {
-            "schedule_id": s.schedule_id,
-            "employee": s.user_id,
-            "shift_date": s.shift_date.isoformat().split('T')[0],
             "start_time": s.start_time.isoformat(),
             "end_time": s.end_time.isoformat(),
             "role": s.role_during_shift,
@@ -161,6 +162,28 @@ async def record_attendance(
     return {"message": "Attendance recorded", "attendance_id": attendance.attendance_id}
 
 
+@router.get("/attendance/all")
+async def get_all_attendance(
+    current_user: User = Depends(require_role_level(5))
+):
+    """Get all attendance records (Admin oversight)"""
+    # Use find_all() to retrieve multiple records and sort them
+    records = await AttendanceRecord.find_all().sort("-attendance_date").to_list()
+    return [
+        {
+            "employee": r.user_id,  # Assuming user_id can be mapped to employee name later
+            "attendance_id": r.attendance_id,  # Include attendance_id for unique row key
+            "date": r.attendance_date.isoformat().split('T')[0],
+            "status": r.status.value,
+            "check_in": r.check_in_time.isoformat() if r.check_in_time else None,
+            "check_out": r.check_out_time.isoformat() if r.check_out_time else None,
+            "hours_worked": round(r.hours_worked, 2) if r.hours_worked else 0,
+        }
+        for r in records
+    ]
+
+
+
 @router.get("/attendance/{user_id}")
 async def get_attendance(
     user_id: str,
@@ -184,27 +207,6 @@ async def get_attendance(
             "check_in": r.check_in_time,
             "check_out": r.check_out_time,
             "hours_worked": r.hours_worked
-        }
-        for r in records
-    ]
-
-
-@router.get("/attendance/all")
-async def get_all_attendance(
-    current_user: User = Depends(require_role_level(5))
-):
-    """Get all attendance records (Admin oversight)"""
-    # Use find_all() to retrieve multiple records and sort them
-    records = await AttendanceRecord.find_all().sort("-attendance_date").to_list()
-    return [
-        {
-            "employee": r.user_id,  # Assuming user_id can be mapped to employee name later
-            "attendance_id": r.attendance_id,  # Include attendance_id for unique row key
-            "date": r.attendance_date.isoformat().split('T')[0],
-            "status": r.status.value,
-            "check_in": r.check_in_time.isoformat() if r.check_in_time else None,
-            "check_out": r.check_out_time.isoformat() if r.check_out_time else None,
-            "hours_worked": round(r.hours_worked, 2) if r.hours_worked else 0,
         }
         for r in records
     ]
@@ -407,7 +409,7 @@ async def get_station_operations(
             "operation_id": l.operation_id,
             "station_id": l.station_id,
             "operation_type": l.operation_type,
-            "timestamp": l.timestamp,
+            "timestamp": l.performed_at,
             "performed_by": l.performed_by,
             "notes": l.issues_noted
         }

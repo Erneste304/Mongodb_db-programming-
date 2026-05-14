@@ -17,7 +17,7 @@ from frontend.pages import superadmin, admin, accountant, inventory, receptionis
 def login_page():
     """Login page UI"""
     with ui.card().classes('absolute-center w-96 p-6'):
-        ui.label('Petroleum Station Management').classes(
+        ui.label('PETRO-SYNC').classes(
             'text-2xl font-bold mb-4')
         ui.label('Login').classes('text-lg mb-4')
 
@@ -553,6 +553,20 @@ def create_nicegui_app(fastapi_app_instance: FastAPI):
         if not app.storage.user.get('authenticated', False):
             return RedirectResponse('/login')
 
+        # ── JWT Expiry Detection ─────────────────────────────────────────────
+        # Check if the stored token is expired by reading the issued-at time
+        import time as _time
+        token_issued_at = app.storage.user.get('token_issued_at', 0)
+        # 24h = 86400 seconds; clear session if token is older than 23.5h
+        if token_issued_at and (_time.time() - token_issued_at) > 84600:
+            app.storage.user.update({
+                'authenticated': False,
+                'token': None,
+                'user': {},
+                'token_issued_at': 0
+            })
+            return RedirectResponse('/login?expired=1')
+
         # Role-Based Access Control (RBAC) for Frontend Routes
         user_data = app.storage.user.get('user', {})
         # Normalize role for comparison
@@ -562,7 +576,7 @@ def create_nicegui_app(fastapi_app_instance: FastAPI):
         # Define allowed routes per role
         role_permissions = {
             'superadmin': ['/users', '/permissions', '/pricing', '/partners', '/settings', '/audit', '/dashboard'],
-            'admin': ['/schedules', '/attendance', '/timesheets', '/operations', '/safety', '/calibration', '/deliveries', '/complaints', '/dashboard'],
+            'admin': ['/schedules', '/attendance', '/timesheets', '/operations', '/safety', '/calibration', '/deliveries', '/complaints', '/inventory', '/sales', '/customers', '/dashboard'],
             'accountant': ['/reconciliation', '/receivable', '/payable', '/tax', '/costs', '/commissions', '/closing', '/compliance', '/dashboard'],
             'inventory_manager': ['/inventory', '/calibration', '/dashboard'],
             'receptionist': ['/sales', '/customers', '/dashboard'],

@@ -106,10 +106,48 @@ def inventory_page():
 
             # Deliveries Panel
             with ui.tab_panel(delivery_tab):
+                with ui.dialog() as delivery_dialog, ui.card().classes('w-96'):
+                    ui.label('Record Fuel Delivery').classes('text-xl font-bold mb-4')
+                    d_tank_id = ui.input('Tank ID (e.g. TANK-1234)').classes('w-full')
+                    d_supplier = ui.input('Supplier Name').classes('w-full')
+                    d_invoice = ui.input('Supplier Invoice #').classes('w-full')
+                    d_fuel = ui.select(['petrol', 'diesel', 'kerosene'], label='Fuel Type').classes('w-full')
+                    d_qty = ui.number('Quantity Delivered (L)').classes('w-full')
+                    d_price = ui.number('Price per Liter').classes('w-full')
+                    d_driver = ui.input('Delivered By (Driver Name)').classes('w-full')
+                    
+                    async def save_delivery():
+                        if not all([d_tank_id.value, d_supplier.value, d_fuel.value, d_qty.value, d_price.value]):
+                            ui.notify('Please fill required fields', type='warning')
+                            return
+                        token = app.storage.user.get('token')
+                        payload = {
+                            "delivery_id": f"DEL-{random.randint(10000, 99999)}",
+                            "tank_id": d_tank_id.value,
+                            "supplier_name": d_supplier.value,
+                            "supplier_invoice_number": d_invoice.value or "N/A",
+                            "fuel_type": d_fuel.value,
+                            "quantity_delivered_liters": d_qty.value,
+                            "price_per_liter": d_price.value,
+                            "delivered_by": d_driver.value or "Unknown"
+                        }
+                        async with httpx.AsyncClient() as client:
+                            url = f"{auth_state.api_base_url}/inventory/deliveries"
+                            resp = await client.post(url, json=payload, headers={'Authorization': f'Bearer {token}'})
+                            if resp.status_code in (200, 201):
+                                ui.notify('Delivery recorded successfully', type='positive')
+                                delivery_dialog.close()
+                                load_inventory()
+                            else:
+                                ui.notify(f"Error: {resp.text}", type='negative')
+
+                    with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                        ui.button('Cancel', on_click=delivery_dialog.close).props('flat')
+                        ui.button('Save', on_click=save_delivery).props('elevated color=green')
+
                 with ui.row().classes('w-full justify-between items-center mb-4'):
                     ui.label('Delivery Logs').classes('text-xl font-bold')
-                    ui.button('Record Delivery', on_click=lambda: ui.notify(
-                        'Record delivery dialog', type='info')).props('elevated icon=local_shipping color=green')
+                    ui.button('Record Delivery', on_click=delivery_dialog.open).props('elevated icon=local_shipping color=green')
 
                 delivery_table = ui.table(
                     columns=[

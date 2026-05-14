@@ -29,6 +29,8 @@ class AuthState:
                 app.storage.user['token'] = data.get("access_token")
                 app.storage.user['user'] = data.get("user")
                 app.storage.user['authenticated'] = True
+                import time as _time
+                app.storage.user['token_issued_at'] = _time.time()
                 return True
 
             # Safely handle non-JSON error responses

@@ -43,10 +43,53 @@ def superadmin_dashboard_page():
 
             # Multi-Station Panel
             with ui.tab_panel(stations_tab):
+                with ui.dialog() as station_dialog, ui.card().classes('w-96'):
+                    ui.label('Add New Station').classes('text-xl font-bold mb-4')
+                    s_id = ui.input('Station ID (e.g. STN-001)').classes('w-full')
+                    s_name = ui.input('Station Name').classes('w-full')
+                    s_loc = ui.input('Location (Short)').classes('w-full')
+                    s_addr = ui.input('Full Address').classes('w-full')
+                    s_city = ui.input('City').classes('w-full')
+                    s_dist = ui.input('District').classes('w-full')
+                    s_mgr_name = ui.input('Manager Name').classes('w-full')
+                    s_mgr_phone = ui.input('Manager Phone').classes('w-full')
+                    s_mgr_email = ui.input('Manager Email').classes('w-full')
+                    
+                    async def save_station():
+                        if not all([s_id.value, s_name.value, s_loc.value, s_addr.value, s_city.value, s_dist.value, s_mgr_name.value, s_mgr_phone.value, s_mgr_email.value]):
+                            ui.notify('Please fill all required fields', type='warning')
+                            return
+                        token = app.storage.user.get('token')
+                        payload = {
+                            "station_id": s_id.value,
+                            "name": s_name.value,
+                            "location": s_loc.value,
+                            "address": s_addr.value,
+                            "city": s_city.value,
+                            "district": s_dist.value,
+                            "manager_name": s_mgr_name.value,
+                            "manager_phone": s_mgr_phone.value,
+                            "manager_email": s_mgr_email.value,
+                            "opening_time": "06:00",
+                            "closing_time": "22:00"
+                        }
+                        async with httpx.AsyncClient() as client:
+                            url = f"{auth_state.api_base_url}/stations/"
+                            resp = await client.post(url, json=payload, headers={'Authorization': f'Bearer {token}'})
+                            if resp.status_code in (200, 201):
+                                ui.notify('Station added successfully', type='positive')
+                                station_dialog.close()
+                                load_dashboard_data()
+                            else:
+                                ui.notify(f"Error: {resp.text}", type='negative')
+
+                    with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                        ui.button('Cancel', on_click=station_dialog.close).props('flat')
+                        ui.button('Save', on_click=save_station).props('elevated color=blue')
+
                 with ui.row().classes('w-full justify-between items-center mb-4'):
                     ui.label('Multi-Station Operations').classes('text-xl font-bold')
-                    ui.button('Add Station', on_click=lambda: ui.notify('Add station dialog', type='info')).props('elevated icon=add')
-                
+                    ui.button('Add Station', on_click=station_dialog.open).props('elevated icon=add')
                 stations_table = ui.table(
                     columns=[
                         {'name': 'id', 'label': 'Station ID', 'field': 'station_id'},
@@ -62,10 +105,34 @@ def superadmin_dashboard_page():
 
             # Inventory Thresholds Panel
             with ui.tab_panel(inventory_tab):
+                with ui.dialog() as threshold_dialog, ui.card().classes('w-96'):
+                    ui.label('Update Thresholds').classes('text-xl font-bold mb-4')
+                    t_tank_id = ui.input('Tank ID').classes('w-full')
+                    t_percent = ui.number('Alert Threshold %', value=20).classes('w-full')
+                    
+                    async def update_threshold():
+                        if not t_tank_id.value or t_percent.value is None:
+                            ui.notify('Please fill all fields', type='warning')
+                            return
+                        token = app.storage.user.get('token')
+                        payload = {"threshold_alert_percent": t_percent.value}
+                        async with httpx.AsyncClient() as client:
+                            url = f"{auth_state.api_base_url}/inventory/tanks/{t_tank_id.value}"
+                            resp = await client.patch(url, json=payload, headers={'Authorization': f'Bearer {token}'})
+                            if resp.status_code in (200, 201):
+                                ui.notify('Threshold updated', type='positive')
+                                threshold_dialog.close()
+                                load_dashboard_data()
+                            else:
+                                ui.notify(f"Error: {resp.text}", type='negative')
+
+                    with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                        ui.button('Cancel', on_click=threshold_dialog.close).props('flat')
+                        ui.button('Update', on_click=update_threshold).props('elevated color=blue')
+
                 with ui.row().classes('w-full justify-between items-center mb-4'):
                     ui.label('Inventory Threshold Configuration').classes('text-xl font-bold')
-                    ui.button('Update Thresholds', on_click=lambda: ui.notify('Update thresholds dialog', type='info')).props('elevated icon=settings')
-                
+                    ui.button('Update Thresholds', on_click=threshold_dialog.open).props('elevated icon=settings')
                 thresholds_table = ui.table(
                     columns=[
                         {'name': 'tank', 'label': 'Tank', 'field': 'tank_id'},

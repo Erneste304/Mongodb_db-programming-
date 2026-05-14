@@ -258,10 +258,39 @@ def timesheets_page():
     def content():
         ui.label('Timesheet Management').classes('text-2xl font-bold mb-6')
 
+        with ui.dialog() as timesheet_dialog, ui.card().classes('w-96'):
+            ui.label('Generate Timesheet').classes('text-xl font-bold mb-4')
+            ts_user = ui.input('User ID').classes('w-full')
+            ts_start = ui.input('Period Start').props('type=date').classes('w-full')
+            ts_end = ui.input('Period End').props('type=date').classes('w-full')
+            ts_rate = ui.number('Hourly Rate (RWF)').classes('w-full')
+            
+            async def generate_ts():
+                if not all([ts_user.value, ts_start.value, ts_end.value, ts_rate.value]):
+                    ui.notify('Please fill required fields', type='warning')
+                    return
+                token = app.storage.user.get('token')
+                async with httpx.AsyncClient() as client:
+                    url = f"{auth_state.api_base_url}/staff-management/timesheets/generate/{ts_user.value}"
+                    params = {
+                        "pay_period_start": f"{ts_start.value}T00:00:00Z",
+                        "pay_period_end": f"{ts_end.value}T23:59:59Z",
+                        "hourly_rate": ts_rate.value
+                    }
+                    resp = await client.post(url, params=params, headers={'Authorization': f'Bearer {token}'})
+                    if resp.status_code in (200, 201):
+                        ui.notify('Timesheet generated successfully', type='positive')
+                        timesheet_dialog.close()
+                        load_timesheets()
+                    else:
+                        ui.notify(f"Error: {resp.text}", type='negative')
+
+            with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                ui.button('Cancel', on_click=timesheet_dialog.close).props('flat')
+                ui.button('Generate', on_click=generate_ts).props('elevated color=blue')
+
         with ui.row().classes('w-full mb-4 gap-2'):
-            ui.input('Period').props('placeholder="Select period"')
-            ui.button('Generate Timesheets', on_click=lambda: ui.notify(
-                'Generating timesheets...', type='info'))
+            ui.button('Generate Timesheets', on_click=timesheet_dialog.open).props('icon=assessment')
 
         with ui.card().classes('w-full'):
             ui.label('Pending Approval').classes('text-lg font-bold mb-4')
