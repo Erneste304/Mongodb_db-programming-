@@ -41,7 +41,8 @@ def home_page():
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(2, 6, 23, 0.6);
+            background: linear-gradient(rgba(2, 6, 23, 0.5), rgba(2, 6, 23, 0.5)), url('/static/hero-bg.png') center/cover no-repeat;
+            background-attachment: fixed;
         }
         
         .glass-card {
