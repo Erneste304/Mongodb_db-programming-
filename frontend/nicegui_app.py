@@ -554,18 +554,24 @@ def create_nicegui_app(fastapi_app_instance: FastAPI):
             return RedirectResponse('/login')
 
         # ── JWT Expiry Detection ─────────────────────────────────────────────
-        # Check if the stored token is expired by reading the issued-at time
-        import time as _time
-        token_issued_at = app.storage.user.get('token_issued_at', 0)
-        # 24h = 86400 seconds; clear session if token is older than 23.5h
-        if token_issued_at and (_time.time() - token_issued_at) > 84600:
-            app.storage.user.update({
-                'authenticated': False,
-                'token': None,
-                'user': {},
-                'token_issued_at': 0
-            })
-            return RedirectResponse('/login?expired=1')
+        # Validate the actual JWT token to ensure it hasn't expired or been tampered with
+        token = app.storage.user.get('token')
+        if token:
+            from jose import jwt, JWTError
+            from backend.core.config import settings
+            try:
+                # This will raise an ExpiredSignatureError if the token is past its 'exp' claim
+                jwt.decode(token, settings.SECRET_KEY,
+                           algorithms=[settings.ALGORITHM])
+            except JWTError as e:
+                print(f"🔄 [AUTH] Session expired or invalid: {str(e)}. Redirecting to login.")
+                app.storage.user.update({
+                    'authenticated': False,
+                    'token': None,
+                    'user': {},
+                    'token_issued_at': 0
+                })
+                return RedirectResponse('/login?expired=1')
 
         # Role-Based Access Control (RBAC) for Frontend Routes
         user_data = app.storage.user.get('user', {})
