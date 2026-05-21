@@ -15,8 +15,7 @@ class Settings(BaseSettings):
     # JWT Configuration
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change-this-in-production")
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
-    
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
     
